@@ -2,41 +2,93 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+/* Design system for Meu Gestor de Gastos - Financial Management App
+Clean, modern, minimal design with financial color semantics
 All colors MUST be HSL.
 */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Base colors - clean and minimal */
+    --background: 0 0% 98%;
+    --foreground: 240 10% 15%;
 
+    /* Card system */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 240 10% 15%;
 
+    /* Interactive elements */
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 240 10% 15%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Primary brand color - financial blue */
+    --primary: 220 91% 55%;
+    --primary-foreground: 0 0% 98%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Secondary - subtle gray */
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 10% 15%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Muted tones */
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 46%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Accent - matching primary */
+    --accent: 220 91% 55%;
+    --accent-foreground: 0 0% 98%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    /* Financial semantic colors */
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 98%;
+    --success-light: 142 71% 95%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --danger: 0 84% 60%;
+    --danger-foreground: 0 0% 98%;
+    --danger-light: 0 84% 95%;
 
-    --radius: 0.5rem;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 98%;
+    --warning-light: 38 92% 95%;
+
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 98%;
+    --info-light: 199 89% 95%;
+
+    /* Original shadcn colors for compatibility */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    /* Borders and inputs */
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 220 91% 55%;
+
+    /* Border radius system */
+    --radius: 0.75rem;
+    --radius-sm: 0.5rem;
+    --radius-lg: 1rem;
+
+    /* Chart colors for financial data */
+    --chart-1: 142 71% 45%;  /* Income - Green */
+    --chart-2: 0 84% 60%;    /* Expense - Red */
+    --chart-3: 199 89% 48%;  /* Transfer - Blue */
+    --chart-4: 262 83% 58%;  /* Investment - Purple */
+    --chart-5: 38 92% 50%;   /* Savings - Orange */
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(220 91% 55%), hsl(220 91% 65%));
+    --gradient-success: linear-gradient(135deg, hsl(142 71% 45%), hsl(142 71% 55%));
+    --gradient-danger: linear-gradient(135deg, hsl(0 84% 60%), hsl(0 84% 70%));
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(240 5% 98%));
+
+    /* Shadows */
+    --shadow-card: 0 1px 3px 0 hsl(240 5% 80% / 0.1), 0 1px 2px 0 hsl(240 5% 80% / 0.06);
+    --shadow-dialog: 0 25px 50px -12px hsl(240 5% 15% / 0.25);
+
+    /* Transitions */
+    --transition-fast: all 0.15s ease-out;
+    --transition-normal: all 0.2s ease-out;
+    --transition-slow: all 0.3s ease-out;
 
     --sidebar-background: 0 0% 98%;
 
