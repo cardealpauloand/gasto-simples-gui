@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Plus, Minus, ArrowRightLeft, Menu, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FinancialChart } from "@/components/FinancialChart";
@@ -7,7 +7,7 @@ import { AccountBalance } from "@/components/AccountBalance";
 import { TransactionDialog } from "@/components/TransactionDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useTransactions } from "@/hooks/useTransactions";
-import { transactionsService } from "@/services/transactions";
+import { AccountsProvider } from "@/contexts/AccountsContext";
 
 const Index = () => {
   const [isIncomeDialogOpen, setIsIncomeDialogOpen] = useState(false);
@@ -64,7 +64,17 @@ const Index = () => {
     type: account.account_group?.name || "Conta",
   }));
 
-  const handleTransactionSubmit = async (data: any) => {
+  type TransactionSubmitData = {
+    description: string;
+    value: string;
+    accountId: string;
+    accountOutId?: string;
+    type: "income" | "expense" | "transfer";
+    installments?: number;
+    date: string;
+  };
+
+  const handleTransactionSubmit = async (data: TransactionSubmitData) => {
     try {
       // Encontrar o tipo de transação baseado no tipo do diálogo
       enum TransactionType {
@@ -92,7 +102,7 @@ const Index = () => {
     }
   };
 
-  const handleEditTransaction = (transaction: any) => {
+  const handleEditTransaction = (transaction: unknown) => {
     console.log("Editar transação:", transaction);
     toast({
       title: "Editar transação",
@@ -110,122 +120,124 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="bg-card shadow-card border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon">
-                <Menu className="h-5 w-5" />
-              </Button>
-              <h1 className="text-xl font-bold text-foreground">
-                Meu Gestor de Gastos
-              </h1>
+    <AccountsProvider value={accounts}>
+      <div className="min-h-screen bg-background">
+        {/* Header */}
+        <header className="bg-card shadow-card border-b">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-16">
+              <div className="flex items-center gap-4">
+                <Button variant="ghost" size="icon">
+                  <Menu className="h-5 w-5" />
+                </Button>
+                <h1 className="text-xl font-bold text-foreground">
+                  Meu Gestor de Gastos
+                </h1>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <User className="h-5 w-5 text-muted-foreground" />
+                <span className="text-sm font-medium text-foreground">
+                  Paulo André
+                </span>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Main Content */}
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Action Buttons */}
+          <div className="flex flex-wrap justify-center gap-4 mb-8">
+            <Button
+              variant="income"
+              size="lg"
+              onClick={() => setIsIncomeDialogOpen(true)}
+              className="flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Nova receita
+            </Button>
+
+            <Button
+              variant="transfer"
+              size="lg"
+              onClick={() => setIsTransferDialogOpen(true)}
+              className="flex items-center gap-2"
+            >
+              <ArrowRightLeft className="h-4 w-4" />
+              Nova transferência
+            </Button>
+
+            <Button
+              variant="expense"
+              size="lg"
+              onClick={() => setIsExpenseDialogOpen(true)}
+              className="flex items-center gap-2"
+            >
+              <Minus className="h-4 w-4" />
+              Nova despesa
+            </Button>
+          </div>
+
+          {/* Dashboard Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            {/* Gráfico de Pizza - Gastos por Categoria */}
+            <div className="lg:col-span-1">
+              <FinancialChart
+                type="pie"
+                data={categoryData}
+                title="Gastos por Categoria"
+              />
             </div>
 
-            <div className="flex items-center gap-2">
-              <User className="h-5 w-5 text-muted-foreground" />
-              <span className="text-sm font-medium text-foreground">
-                Paulo André
-              </span>
+            {/* Lista de Transações */}
+            <div className="lg:col-span-2">
+              <TransactionList
+                transactions={formattedTransactions}
+                onEdit={handleEditTransaction}
+                onDelete={handleDeleteTransaction}
+              />
+            </div>
+
+            {/* Lado Direito */}
+            <div className="lg:col-span-1 space-y-6">
+              {/* Gráfico de Linha - Evolução do Patrimônio */}
+              <FinancialChart
+                type="line"
+                data={investmentData}
+                title="Evolução do Patrimônio"
+              />
+
+              {/* Saldo das Contas */}
+              <AccountBalance accounts={formattedAccounts} />
             </div>
           </div>
-        </div>
-      </header>
+        </main>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Action Buttons */}
-        <div className="flex flex-wrap justify-center gap-4 mb-8">
-          <Button
-            variant="income"
-            size="lg"
-            onClick={() => setIsIncomeDialogOpen(true)}
-            className="flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Nova receita
-          </Button>
+        {/* Transaction Dialogs */}
+        <TransactionDialog
+          type="income"
+          isOpen={isIncomeDialogOpen}
+          onOpenChange={setIsIncomeDialogOpen}
+          onSubmit={handleTransactionSubmit}
+        />
 
-          <Button
-            variant="transfer"
-            size="lg"
-            onClick={() => setIsTransferDialogOpen(true)}
-            className="flex items-center gap-2"
-          >
-            <ArrowRightLeft className="h-4 w-4" />
-            Nova transferência
-          </Button>
+        <TransactionDialog
+          type="expense"
+          isOpen={isExpenseDialogOpen}
+          onOpenChange={setIsExpenseDialogOpen}
+          onSubmit={handleTransactionSubmit}
+        />
 
-          <Button
-            variant="expense"
-            size="lg"
-            onClick={() => setIsExpenseDialogOpen(true)}
-            className="flex items-center gap-2"
-          >
-            <Minus className="h-4 w-4" />
-            Nova despesa
-          </Button>
-        </div>
-
-        {/* Dashboard Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Gráfico de Pizza - Gastos por Categoria */}
-          <div className="lg:col-span-1">
-            <FinancialChart
-              type="pie"
-              data={categoryData}
-              title="Gastos por Categoria"
-            />
-          </div>
-
-          {/* Lista de Transações */}
-          <div className="lg:col-span-2">
-            <TransactionList
-              transactions={formattedTransactions}
-              onEdit={handleEditTransaction}
-              onDelete={handleDeleteTransaction}
-            />
-          </div>
-
-          {/* Lado Direito */}
-          <div className="lg:col-span-1 space-y-6">
-            {/* Gráfico de Linha - Evolução do Patrimônio */}
-            <FinancialChart
-              type="line"
-              data={investmentData}
-              title="Evolução do Patrimônio"
-            />
-
-            {/* Saldo das Contas */}
-            <AccountBalance accounts={formattedAccounts} />
-          </div>
-        </div>
-      </main>
-
-      {/* Transaction Dialogs */}
-      <TransactionDialog
-        type="income"
-        isOpen={isIncomeDialogOpen}
-        onOpenChange={setIsIncomeDialogOpen}
-        onSubmit={handleTransactionSubmit}
-      />
-
-      <TransactionDialog
-        type="expense"
-        isOpen={isExpenseDialogOpen}
-        onOpenChange={setIsExpenseDialogOpen}
-        onSubmit={handleTransactionSubmit}
-      />
-
-      <TransactionDialog
-        type="transfer"
-        isOpen={isTransferDialogOpen}
-        onOpenChange={setIsTransferDialogOpen}
-        onSubmit={handleTransactionSubmit}
-      />
-    </div>
+        <TransactionDialog
+          type="transfer"
+          isOpen={isTransferDialogOpen}
+          onOpenChange={setIsTransferDialogOpen}
+          onSubmit={handleTransactionSubmit}
+        />
+      </div>
+    </AccountsProvider>
   );
 };
 

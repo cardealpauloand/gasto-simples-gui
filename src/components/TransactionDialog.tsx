@@ -1,17 +1,18 @@
 import { useState } from 'react';
-import { Plus, X, Trash2 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Plus, X } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { useAccounts } from '@/contexts/AccountsContext';
 
 interface TransactionFormData {
   description: string;
-  account: string;
-  accountOut?: string;
+  accountId: string;
+  accountOutId?: string;
   date: string;
   value: string;
   categories: string[];
@@ -25,12 +26,6 @@ interface TransactionDialogProps {
   onSubmit: (data: TransactionFormData & { type: string }) => void;
 }
 
-const mockAccounts = [
-  { id: '1', name: 'C6 Bank', type: 'Conta Corrente' },
-  { id: '2', name: 'Sicoob', type: 'Conta Corrente' },
-  { id: '3', name: 'Nubank', type: 'Cartão de Crédito' },
-];
-
 const mockCategories = [
   'Comida', 'Lazer', 'Transporte', 'Saúde', 'Educação', 'Casa', 'Outros'
 ];
@@ -40,10 +35,12 @@ const mockTags = [
 ];
 
 export function TransactionDialog({ type, isOpen, onOpenChange, onSubmit }: TransactionDialogProps) {
+  const accounts = useAccounts();
+
   const [formData, setFormData] = useState<TransactionFormData>({
     description: '',
-    account: '',
-    accountOut: '',
+    accountId: '',
+    accountOutId: '',
     date: new Date().toISOString().split('T')[0],
     value: '',
     categories: [],
@@ -59,8 +56,8 @@ export function TransactionDialog({ type, isOpen, onOpenChange, onSubmit }: Tran
     // Reset form
     setFormData({
       description: '',
-      account: '',
-      accountOut: '',
+      accountId: '',
+      accountOutId: '',
       date: new Date().toISOString().split('T')[0],
       value: '',
       categories: [],
@@ -149,16 +146,16 @@ export function TransactionDialog({ type, isOpen, onOpenChange, onSubmit }: Tran
                 <div className="space-y-2">
                   <Label htmlFor="account">Banco</Label>
                   <Select
-                    value={formData.account}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, account: value }))}
+                    value={formData.accountId}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, accountId: value }))}
                     required
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
-                      {mockAccounts.map((account) => (
-                        <SelectItem key={account.id} value={account.id}>
+                      {accounts.map((account) => (
+                        <SelectItem key={account.id} value={account.id?.toString()}>
                           {account.name}
                         </SelectItem>
                       ))}
@@ -184,16 +181,16 @@ export function TransactionDialog({ type, isOpen, onOpenChange, onSubmit }: Tran
                 <div className="space-y-2">
                   <Label htmlFor="accountOut">Banco de Destino</Label>
                   <Select
-                    value={formData.accountOut}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, accountOut: value }))}
+                    value={formData.accountOutId}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, accountOutId: value }))}
                     required
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o banco de destino" />
                     </SelectTrigger>
                     <SelectContent>
-                      {mockAccounts.map((account) => (
-                        <SelectItem key={account.id} value={account.id}>
+                      {accounts.map((account) => (
+                        <SelectItem key={account.id} value={account.id?.toString()}>
                           {account.name}
                         </SelectItem>
                       ))}
