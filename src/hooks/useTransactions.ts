@@ -99,6 +99,32 @@ export const useTransactions = () => {
     }
   };
 
+  const deleteTransaction = async (id: string) => {
+    setLoading(true);
+    try {
+      await transactionsService.deleteTransaction(id);
+
+      toast({
+        title: "Transação removida",
+        description: "A transação foi removida com sucesso.",
+        variant: "destructive",
+      });
+
+      await loadData();
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Erro desconhecido";
+      toast({
+        title: "Erro ao remover transação",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadData();
   }, [loadData]);
@@ -110,6 +136,7 @@ export const useTransactions = () => {
     categories,
     loading,
     createTransaction,
+    deleteTransaction,
     refetch: loadData,
   };
 };

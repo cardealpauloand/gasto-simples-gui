@@ -161,6 +161,41 @@ export const transactionsService = {
     }
   },
 
+  async deleteTransaction(id: string) {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        throw new Error("Usuário não autenticado");
+      }
+
+      const { error: installmentsError } = await supabase
+        .from("transactions_installments")
+        .delete()
+        .eq("transaction_id", id)
+        .eq("user_id", user.id);
+
+      if (installmentsError) {
+        throw installmentsError;
+      }
+
+      const { error: transactionError } = await supabase
+        .from("transactions")
+        .delete()
+        .eq("id", id)
+        .eq("user_id", user.id);
+
+      if (transactionError) {
+        throw transactionError;
+      }
+    } catch (error) {
+      console.error("Erro ao deletar transação:", error);
+      throw error;
+    }
+  },
+
   async getAccounts() {
     try {
       const user = await ensureUser();

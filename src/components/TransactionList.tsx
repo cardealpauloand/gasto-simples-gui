@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 
 interface Transaction {
   id: string;
+  transactionId: string;
   name: string;
   bank: string;
   category: string;
@@ -104,10 +105,10 @@ export function TransactionList({ transactions, onEdit, onDelete }: TransactionL
                       <Edit className="mr-2 h-4 w-4" />
                       Editar
                     </DropdownMenuItem>
-                    <DropdownMenuItem 
-                      onClick={() => onDelete?.(transaction.id)}
-                      className="cursor-pointer text-danger focus:text-danger"
-                    >
+                      <DropdownMenuItem
+                        onClick={() => onDelete?.(transaction.transactionId)}
+                        className="cursor-pointer text-danger focus:text-danger"
+                      >
                       <Trash2 className="mr-2 h-4 w-4" />
                       Excluir
                     </DropdownMenuItem>

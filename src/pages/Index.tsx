@@ -25,6 +25,7 @@ interface TransactionFormValues {
 
 interface FormattedTransaction {
   id: string;
+  transactionId: string;
   name: string;
   bank: string;
   category: string;
@@ -46,6 +47,7 @@ const Index = () => {
     categories,
     loading,
     createTransaction,
+    deleteTransaction,
   } = useTransactions();
 
   // Dados de gráfico temporários - serão calculados baseados nas transações reais
@@ -68,6 +70,7 @@ const Index = () => {
   const formattedTransactions: FormattedTransaction[] = transactions.map(
     (transaction) => ({
       id: transaction.id,
+      transactionId: transaction.transaction_id,
       name: transaction.description || "Sem descrição",
       bank: transaction.account?.name || "N/A",
       category: "Outros", // Por enquanto, até implementarmos as categorias
@@ -138,13 +141,8 @@ const Index = () => {
     });
   };
 
-  const handleDeleteTransaction = (id: string) => {
-    console.log("Deletar transação:", id);
-    toast({
-      title: "Transação removida",
-      description: "A transação foi removida com sucesso.",
-      variant: "destructive",
-    });
+  const handleDeleteTransaction = async (id: string) => {
+    await deleteTransaction(id);
   };
 
   return (
