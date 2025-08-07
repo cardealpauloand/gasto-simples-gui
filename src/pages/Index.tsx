@@ -94,7 +94,11 @@ const Index = () => {
       name: transaction.description || "Sem descrição",
       bank: transaction.account?.name || "N/A",
       category: "Outros", // Por enquanto, até implementarmos as categorias
-      value: transaction.value,
+      value:
+        transaction.transaction_type?.name === "Despesa" ||
+        transaction.transaction_type?.name === "Transferência"
+          ? -transaction.value
+          : transaction.value,
       type:
         transaction.transaction_type?.name === "Receita"
           ? ("income" as const)
@@ -105,11 +109,31 @@ const Index = () => {
     })
   );
 
+  // Calcula o resultado das transações por conta
+  const accountTotals = transactions.reduce<Record<string, number>>(
+    (acc, transaction) => {
+      const accountId = transaction.account_id;
+      if (!accountId) return acc;
+
+      const typeName = transaction.transaction_type?.name;
+      const value = transaction.value || 0;
+
+      const impact =
+        typeName === "Despesa" || typeName === "Transferência"
+          ? -value
+          : value;
+
+      acc[accountId] = (acc[accountId] || 0) + impact;
+      return acc;
+    },
+    {}
+  );
+
   // Formatação das contas para o componente AccountBalance
   const formattedAccounts = accounts.map((account) => ({
     id: account.id,
     name: account.name,
-    balance: account.initial_value || 0, // Por enquanto usando o valor inicial
+    balance: (account.initial_value || 0) + (accountTotals[account.id] || 0),
     type: account.account_group?.name || "Conta",
   }));
 
