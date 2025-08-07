@@ -8,81 +8,81 @@ type TransactionInstallmentInsert =
 export interface CreateTransactionData {
   description: string;
   value: number;
+  date: string; // esperado YYYY-MM-DD
+  installments?: number;
   accountId?: string;
   accountOutId?: string;
   account?: string;
   accountOut?: string;
   transactionTypeId?: string;
   type?: string;
-  installments?: number;
-  date: string;
 }
+
+/** Garante usuário autenticado e retorna o objeto do user */
+const ensureUser = async () => {
+  const { data, error } = await supabase.auth.getUser();
+  if (error) throw error;
+  const user = data?.user;
+  if (!user) throw new Error("Usuário não autenticado");
+  return user;
+};
+
+/** Formata Date -> 'YYYY-MM-DD' sem problemas de timezone */
+const toYMD = (d: Date) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+
+/** Soma meses preservando dia quando possível */
+const addMonths = (d: Date, months: number) => {
+  const copy = new Date(d.getTime());
+  copy.setMonth(copy.getMonth() + months);
+  return copy;
+};
 
 export const transactionsService = {
   /**
    * Autentica um usuário usando e-mail e senha no Supabase.
-   * @param email E-mail do usuário
-   * @param password Senha do usuário
-   * @returns Dados do usuário autenticado ou erro
    */
   async login(email: string, password: string) {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (error) {
-        throw error;
-      }
-      return data;
-    } catch (error) {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error) {
       console.error("Erro ao autenticar usuário:", error);
       throw error;
     }
+    return data;
   },
 
   /**
    * Cadastra um novo usuário no Supabase.
-   * @param email E-mail do usuário
-   * @param password Senha do usuário
-   * @returns Dados do usuário cadastrado ou erro
    */
   async signUp(email: string, password: string) {
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-      });
-      if (error) {
-        throw error;
-      }
-      return data;
-    } catch (error) {
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) {
       console.error("Erro ao cadastrar usuário:", error);
       throw error;
     }
+    return data;
   },
-  async createTransaction(data: CreateTransactionData) {
+
+  async createTransaction(input: CreateTransactionData) {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const user = await ensureUser();
+      const installments = input.installments ?? 1;
 
-      if (!user) {
-        throw new Error("Usuário não autenticado");
-      }
-
-      const installments = data.installments || 1;
-      console.log("data", data);
-
-      // 1. Criar a transação principal
+      // 1) Criar a transação principal
       const transactionData: TransactionInsert = {
         user_id: user.id,
-        account_id: data.account,
-        account_out_id: data.accountOut,
-        transaction_type_id: data.transactionTypeId,
+        account_id: input.accountId ?? undefined,
+        account_out_id: input.accountOutId ?? undefined,
+        transaction_type_id: input.transactionTypeId ?? undefined,
         total_installments: installments,
-        description: data.description,
+        description: input.description,
       };
 
       const { data: transaction, error: transactionError } = await supabase
@@ -91,49 +91,45 @@ export const transactionsService = {
         .select()
         .single();
 
-      if (transactionError) {
-        throw transactionError;
-      }
+      if (transactionError) throw transactionError;
 
-      // 2. Criar as parcelas automaticamente
-      const installmentData: TransactionInstallmentInsert[] = [];
-      const baseDate = new Date(data.date);
+      // 2) Criar as parcelas automaticamente
+      // Parse local para evitar UTC shift
+      const baseDate = new Date(`${input.date}T00:00:00`);
 
-      for (let i = 0; i < installments; i++) {
-        const installmentDate = new Date(baseDate);
-        installmentDate.setMonth(baseDate.getMonth() + i);
+      const installmentsPayload: TransactionInstallmentInsert[] = Array.from(
+        { length: installments },
+        (_, i) => {
+          const date = addMonths(baseDate, i);
+          return {
+            transaction_id: transaction.id,
+            user_id: user.id,
+            account_id: input.accountId,
+            transaction_type_id: input.transactionTypeId,
+            value: input.value,
+            date: toYMD(date),
+            installment_number: i + 1,
+            description:
+              installments > 1
+                ? `${input.description} - Parcela ${i + 1}/${installments}`
+                : input.description,
+          };
+        }
+      );
 
-        installmentData.push({
-          transaction_id: transaction.id,
-          user_id: user.id,
-          account_id: data.accountId,
-          transaction_type_id: data.transactionTypeId,
-          value: data.value,
-          date: installmentDate.toISOString().split("T")[0],
-          installment_number: i + 1,
-          description:
-            installments > 1
-              ? `${data.description} - Parcela ${i + 1}/${installments}`
-              : data.description,
-        });
-      }
-
-      const { data: installmentsData, error: installmentsError } =
+      const { data: createdInstallments, error: installmentsError } =
         await supabase
           .from("transactions_installments")
-          .insert(installmentData)
+          .insert(installmentsPayload)
           .select();
 
       if (installmentsError) {
-        // Se houver erro ao criar as parcelas, desfazer a transação
+        // rollback best-effort
         await supabase.from("transactions").delete().eq("id", transaction.id);
         throw installmentsError;
       }
 
-      return {
-        transaction,
-        installments: installmentsData,
-      };
+      return { transaction, installments: createdInstallments };
     } catch (error) {
       console.error("Erro ao criar transação:", error);
       throw error;
@@ -142,13 +138,7 @@ export const transactionsService = {
 
   async getTransactions() {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        throw new Error("Usuário não autenticado");
-      }
+      const user = await ensureUser();
 
       const { data, error } = await supabase
         .from("transactions_installments")
@@ -163,10 +153,7 @@ export const transactionsService = {
         .eq("user_id", user.id)
         .order("date", { ascending: false });
 
-      if (error) {
-        throw error;
-      }
-
+      if (error) throw error;
       return data;
     } catch (error) {
       console.error("Erro ao buscar transações:", error);
@@ -176,14 +163,7 @@ export const transactionsService = {
 
   async getAccounts() {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      console.log("Usuário autenticado:", user);
-
-      if (!user) {
-        throw new Error("Usuário não autenticado");
-      }
+      const user = await ensureUser();
 
       const { data, error } = await supabase
         .from("account")
@@ -195,10 +175,7 @@ export const transactionsService = {
         )
         .eq("user_id", user.id);
 
-      if (error) {
-        throw error;
-      }
-
+      if (error) throw error;
       return data;
     } catch (error) {
       console.error("Erro ao buscar contas:", error);
@@ -207,37 +184,25 @@ export const transactionsService = {
   },
 
   async getTransactionTypes() {
-    try {
-      const { data, error } = await supabase
-        .from("transactions_type")
-        .select("*");
-
-      if (error) {
-        throw error;
-      }
-
-      return data;
-    } catch (error) {
+    const { data, error } = await supabase
+      .from("transactions_type")
+      .select("*");
+    if (error) {
       console.error("Erro ao buscar tipos de transação:", error);
       throw error;
     }
+    return data;
   },
 
   async getCategories() {
-    try {
-      const { data, error } = await supabase.from("category").select(`
-          *,
-          sub_categories:sub_category(*)
-        `);
-
-      if (error) {
-        throw error;
-      }
-
-      return data;
-    } catch (error) {
+    const { data, error } = await supabase.from("category").select(`
+      *,
+      sub_categories:sub_category(*)
+    `);
+    if (error) {
       console.error("Erro ao buscar categorias:", error);
       throw error;
     }
+    return data;
   },
 };
