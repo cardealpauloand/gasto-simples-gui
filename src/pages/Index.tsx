@@ -1,11 +1,13 @@
-import { useState } from 'react';
-import { Plus, Minus, ArrowRightLeft, Menu, User } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { FinancialChart } from '@/components/FinancialChart';
-import { TransactionList } from '@/components/TransactionList';
-import { AccountBalance } from '@/components/AccountBalance';
-import { TransactionDialog } from '@/components/TransactionDialog';
-import { useToast } from '@/hooks/use-toast';
+import { useEffect, useState } from "react";
+import { Plus, Minus, ArrowRightLeft, Menu, User } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { FinancialChart } from "@/components/FinancialChart";
+import { TransactionList } from "@/components/TransactionList";
+import { AccountBalance } from "@/components/AccountBalance";
+import { TransactionDialog } from "@/components/TransactionDialog";
+import { useToast } from "@/hooks/use-toast";
+import { useTransactions } from "@/hooks/useTransactions";
+import { transactionsService } from "@/services/transactions";
 
 const Index = () => {
   const [isIncomeDialogOpen, setIsIncomeDialogOpen] = useState(false);
@@ -13,67 +15,85 @@ const Index = () => {
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
   const { toast } = useToast();
 
-  // Mock data - Em uma aplicação real, estes dados viriam do Supabase
+  const {
+    transactions,
+    accounts,
+    transactionTypes,
+    categories,
+    loading,
+    createTransaction,
+  } = useTransactions();
+
+  // Dados de gráfico temporários - serão calculados baseados nas transações reais
   const categoryData = [
-    { name: 'Lazer', value: 450, color: 'hsl(var(--chart-4))' },
-    { name: 'Comida', value: 320, color: 'hsl(var(--chart-2))' },
-    { name: 'Outros', value: 180, color: 'hsl(var(--chart-5))' },
+    { name: "Lazer", value: 450, color: "hsl(var(--chart-4))" },
+    { name: "Comida", value: 320, color: "hsl(var(--chart-2))" },
+    { name: "Outros", value: 180, color: "hsl(var(--chart-5))" },
   ];
 
   const investmentData = [
-    { month: 'Jan', acoes: 5000, rendaFixa: 3000, outros: 1000 },
-    { month: 'Fev', acoes: 5200, rendaFixa: 3100, outros: 1100 },
-    { month: 'Mar', acoes: 4800, rendaFixa: 3200, outros: 1050 },
-    { month: 'Abr', acoes: 5500, rendaFixa: 3300, outros: 1200 },
-    { month: 'Mai', acoes: 5800, rendaFixa: 3400, outros: 1150 },
-    { month: 'Jun', acoes: 6100, rendaFixa: 3500, outros: 1300 },
+    { month: "Jan", acoes: 5000, rendaFixa: 3000, outros: 1000 },
+    { month: "Fev", acoes: 5200, rendaFixa: 3100, outros: 1100 },
+    { month: "Mar", acoes: 4800, rendaFixa: 3200, outros: 1050 },
+    { month: "Abr", acoes: 5500, rendaFixa: 3300, outros: 1200 },
+    { month: "Mai", acoes: 5800, rendaFixa: 3400, outros: 1150 },
+    { month: "Jun", acoes: 6100, rendaFixa: 3500, outros: 1300 },
   ];
 
-  const transactions = [
-    {
-      id: '1',
-      name: 'Hamburger',
-      bank: 'C6',
-      category: 'Comida',
-      value: -50,
-      type: 'expense' as const,
-      date: '08/09/2025'
-    },
-    {
-      id: '2',
-      name: 'Salário',
-      bank: 'Sicoob',
-      category: 'Outros',
-      value: 3500,
-      type: 'income' as const,
-      date: '05/09/2025'
-    },
-    {
-      id: '3',
-      name: 'Cinema',
-      bank: 'C6',
-      category: 'Lazer',
-      value: -45,
-      type: 'expense' as const,
-      date: '03/09/2025'
+  // Formatação das transações para o componente TransactionList
+  const formattedTransactions = transactions.map((transaction) => ({
+    id: transaction.id,
+    name: transaction.description || "Sem descrição",
+    bank: transaction.account?.name || "N/A",
+    category: "Outros", // Por enquanto, até implementarmos as categorias
+    value: transaction.value,
+    type:
+      transaction.transaction_type?.name === "Receita"
+        ? ("income" as const)
+        : transaction.transaction_type?.name === "Despesa"
+        ? ("expense" as const)
+        : ("transfer" as const),
+    date: new Date(transaction.date).toLocaleDateString("pt-BR"),
+  }));
+
+  // Formatação das contas para o componente AccountBalance
+  const formattedAccounts = accounts.map((account) => ({
+    id: account.id,
+    name: account.name,
+    balance: account.initial_value || 0, // Por enquanto usando o valor inicial
+    type: account.account_group?.name || "Conta",
+  }));
+
+  const handleTransactionSubmit = async (data: any) => {
+    try {
+      // Encontrar o tipo de transação baseado no tipo do diálogo
+      enum TransactionType {
+        income = 1,
+        expense = 2,
+        transfer = 3,
+      }
+
+      await createTransaction({
+        description: data.description,
+        value: data.value,
+        accountId: data.accountId,
+        accountOutId: data.accountOutId,
+        transactionTypeId: TransactionType[data.type] || 1,
+        installments: data.installments || 1,
+        date: data.date,
+      });
+
+      // Fechar o diálogo apropriado
+      if (data.type === "income") setIsIncomeDialogOpen(false);
+      if (data.type === "expense") setIsExpenseDialogOpen(false);
+      if (data.type === "transfer") setIsTransferDialogOpen(false);
+    } catch (error) {
+      console.error("Erro ao criar transação:", error);
     }
-  ];
-
-  const accounts = [
-    { id: '1', name: 'C6', balance: 9350, type: 'Conta Corrente' },
-    { id: '2', name: 'Sicoob', balance: 9350, type: 'Conta Corrente' },
-  ];
-
-  const handleTransactionSubmit = (data: any) => {
-    console.log('Nova transação:', data);
-    toast({
-      title: "Transação adicionada",
-      description: `${data.description} foi adicionada com sucesso.`,
-    });
   };
 
   const handleEditTransaction = (transaction: any) => {
-    console.log('Editar transação:', transaction);
+    console.log("Editar transação:", transaction);
     toast({
       title: "Editar transação",
       description: "Funcionalidade de edição será implementada em breve.",
@@ -81,7 +101,7 @@ const Index = () => {
   };
 
   const handleDeleteTransaction = (id: string) => {
-    console.log('Deletar transação:', id);
+    console.log("Deletar transação:", id);
     toast({
       title: "Transação removida",
       description: "A transação foi removida com sucesso.",
@@ -99,12 +119,16 @@ const Index = () => {
               <Button variant="ghost" size="icon">
                 <Menu className="h-5 w-5" />
               </Button>
-              <h1 className="text-xl font-bold text-foreground">Meu Gestor de Gastos</h1>
+              <h1 className="text-xl font-bold text-foreground">
+                Meu Gestor de Gastos
+              </h1>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <User className="h-5 w-5 text-muted-foreground" />
-              <span className="text-sm font-medium text-foreground">Paulo André</span>
+              <span className="text-sm font-medium text-foreground">
+                Paulo André
+              </span>
             </div>
           </div>
         </div>
@@ -114,8 +138,8 @@ const Index = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Action Buttons */}
         <div className="flex flex-wrap justify-center gap-4 mb-8">
-          <Button 
-            variant="income" 
+          <Button
+            variant="income"
             size="lg"
             onClick={() => setIsIncomeDialogOpen(true)}
             className="flex items-center gap-2"
@@ -123,9 +147,9 @@ const Index = () => {
             <Plus className="h-4 w-4" />
             Nova receita
           </Button>
-          
-          <Button 
-            variant="transfer" 
+
+          <Button
+            variant="transfer"
             size="lg"
             onClick={() => setIsTransferDialogOpen(true)}
             className="flex items-center gap-2"
@@ -133,9 +157,9 @@ const Index = () => {
             <ArrowRightLeft className="h-4 w-4" />
             Nova transferência
           </Button>
-          
-          <Button 
-            variant="expense" 
+
+          <Button
+            variant="expense"
             size="lg"
             onClick={() => setIsExpenseDialogOpen(true)}
             className="flex items-center gap-2"
@@ -149,7 +173,7 @@ const Index = () => {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Gráfico de Pizza - Gastos por Categoria */}
           <div className="lg:col-span-1">
-            <FinancialChart 
+            <FinancialChart
               type="pie"
               data={categoryData}
               title="Gastos por Categoria"
@@ -158,8 +182,8 @@ const Index = () => {
 
           {/* Lista de Transações */}
           <div className="lg:col-span-2">
-            <TransactionList 
-              transactions={transactions}
+            <TransactionList
+              transactions={formattedTransactions}
               onEdit={handleEditTransaction}
               onDelete={handleDeleteTransaction}
             />
@@ -168,14 +192,14 @@ const Index = () => {
           {/* Lado Direito */}
           <div className="lg:col-span-1 space-y-6">
             {/* Gráfico de Linha - Evolução do Patrimônio */}
-            <FinancialChart 
+            <FinancialChart
               type="line"
               data={investmentData}
               title="Evolução do Patrimônio"
             />
 
             {/* Saldo das Contas */}
-            <AccountBalance accounts={accounts} />
+            <AccountBalance accounts={formattedAccounts} />
           </div>
         </div>
       </main>
