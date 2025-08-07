@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, X } from "lucide-react";
 import {
   Dialog,
@@ -35,6 +35,7 @@ interface TransactionDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (data: TransactionFormData & { type: string }) => void;
+  initialData?: TransactionFormData;
 }
 
 const mockCategories = [
@@ -54,10 +55,11 @@ export function TransactionDialog({
   isOpen,
   onOpenChange,
   onSubmit,
+  initialData,
 }: TransactionDialogProps) {
   const accounts = useAccounts();
 
-  const [formData, setFormData] = useState<TransactionFormData>({
+  const emptyForm: TransactionFormData = {
     description: "",
     accountId: "",
     accountOutId: "",
@@ -65,7 +67,19 @@ export function TransactionDialog({
     value: "",
     categories: [],
     tags: [],
-  });
+  };
+
+  const [formData, setFormData] = useState<TransactionFormData>(emptyForm);
+
+  useEffect(() => {
+    if (isOpen) {
+      if (initialData) {
+        setFormData(initialData);
+      } else {
+        setFormData(emptyForm);
+      }
+    }
+  }, [isOpen, initialData]);
 
   const [newCategory, setNewCategory] = useState("");
   const [newTag, setNewTag] = useState("");
@@ -76,15 +90,7 @@ export function TransactionDialog({
 
     onSubmit({ ...formData, type });
     // Reset form
-    setFormData({
-      description: "",
-      accountId: "",
-      accountOutId: "",
-      date: new Date().toISOString().split("T")[0],
-      value: "",
-      categories: [],
-      tags: [],
-    });
+    setFormData(emptyForm);
     onOpenChange(false);
   };
 
@@ -123,13 +129,23 @@ export function TransactionDialog({
   };
 
   const getTypeInfo = () => {
+    const isEditing = !!initialData;
     switch (type) {
       case "income":
-        return { title: "Nova Receita", tabValue: "Entrada" };
+        return {
+          title: isEditing ? "Editar Receita" : "Nova Receita",
+          tabValue: "Entrada",
+        };
       case "expense":
-        return { title: "Nova Despesa", tabValue: "Saída" };
+        return {
+          title: isEditing ? "Editar Despesa" : "Nova Despesa",
+          tabValue: "Saída",
+        };
       case "transfer":
-        return { title: "Nova Transferência", tabValue: "Transferência" };
+        return {
+          title: isEditing ? "Editar Transferência" : "Nova Transferência",
+          tabValue: "Transferência",
+        };
     }
   };
 

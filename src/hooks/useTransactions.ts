@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   transactionsService,
   type CreateTransactionData,
+  type UpdateTransactionData,
 } from "@/services/transactions";
 import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
@@ -116,6 +117,32 @@ export const useTransactions = () => {
         error instanceof Error ? error.message : "Erro desconhecido";
       toast({
         title: "Erro ao remover transação",
+
+        description: errorMessage,
+        variant: "destructive",
+      });
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateTransaction = async (data: UpdateTransactionData) => {
+    setLoading(true);
+    try {
+      await transactionsService.updateTransaction(data);
+
+      toast({
+        title: "Transação atualizada",
+        description: `${data.description} foi atualizada com sucesso.`,
+      });
+
+      await loadData();
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Erro desconhecido";
+      toast({
+        title: "Erro ao atualizar transação",
         description: errorMessage,
         variant: "destructive",
       });
@@ -137,6 +164,7 @@ export const useTransactions = () => {
     loading,
     createTransaction,
     deleteTransaction,
+    updateTransaction,
     refetch: loadData,
   };
 };

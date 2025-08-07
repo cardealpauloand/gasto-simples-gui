@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Plus, Minus, ArrowRightLeft, Menu, User } from "lucide-react";
+import type { Database } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
 import { FinancialChart } from "@/components/FinancialChart";
 import { TransactionList } from "@/components/TransactionList";
@@ -34,10 +35,28 @@ interface FormattedTransaction {
   date: string;
 }
 
+type TransactionRow =
+  Database["public"]["Tables"]["transactions_installments"]["Row"] & {
+    account?: { name: string } | null;
+    transaction_type?: { name: string } | null;
+  };
+
+type TransactionDialogFormData = {
+  description: string;
+  accountId: string;
+  accountOutId?: string;
+  date: string;
+  value: string;
+  categories: string[];
+  tags: string[];
+};
+
 const Index = () => {
   const [isIncomeDialogOpen, setIsIncomeDialogOpen] = useState(false);
   const [isExpenseDialogOpen, setIsExpenseDialogOpen] = useState(false);
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] =
+    useState<TransactionRow | null>(null);
   const { toast } = useToast();
 
   const {
@@ -48,6 +67,7 @@ const Index = () => {
     loading,
     createTransaction,
     deleteTransaction,
+    updateTransaction,
   } = useTransactions();
 
   // Dados de gráfico temporários - serão calculados baseados nas transações reais
@@ -103,6 +123,18 @@ const Index = () => {
     date: string;
   };
 
+  const mapTransactionToFormData = (
+    transaction: TransactionRow
+  ): TransactionDialogFormData => ({
+    description: transaction.description || undefined,
+    accountId: transaction.account_id?.toString() || undefined,
+    accountOutId: transaction.account_out_id?.toString() || undefined,
+    date: new Date(transaction.date).toISOString().split("T")[0],
+    value: transaction.value?.toString() || undefined,
+    categories: [],
+    tags: [],
+  });
+
   const handleTransactionSubmit = async (data: TransactionFormValues) => {
     try {
       // Encontrar o tipo de transação baseado no tipo do diálogo
@@ -111,34 +143,47 @@ const Index = () => {
         expense = 2,
         transfer = 3,
       }
+      if (editingTransaction) {
+        await updateTransaction({
+          installmentId: editingTransaction.id,
+          transactionId: editingTransaction.transaction_id,
+          description: data.description,
+          value: Number(data.value),
+          accountId: data.accountId,
+          accountOutId: data.accountOutId,
+          date: data.date,
+        });
+        setEditingTransaction(null);
+      } else {
+        await createTransaction({
+          description: data.description,
+          value: Number(data.value),
+          account: data.account,
+          accountOut: data.accountOutId,
+          accountId: data.accountId,
+          accountOutId: data.accountOut,
+          transactionTypeId: String(TransactionType[data.type] || 1),
+          installments: data.installments || 1,
+          date: data.date,
+        });
+      }
 
-      await createTransaction({
-        description: data.description,
-        value: Number(data.value),
-        account: data.account,
-        accountOut: data.accountOutId,
-        accountId: data.accountId,
-        accountOutId: data.accountOut,
-        transactionTypeId: String(TransactionType[data.type] || 1),
-        installments: data.installments || 1,
-        date: data.date,
-      });
-
-      // Fechar o diálogo apropriado
       if (data.type === "income") setIsIncomeDialogOpen(false);
       if (data.type === "expense") setIsExpenseDialogOpen(false);
       if (data.type === "transfer") setIsTransferDialogOpen(false);
     } catch (error) {
-      console.error("Erro ao criar transação:", error);
+      console.error("Erro ao salvar transação:", error);
     }
   };
 
   const handleEditTransaction = (transaction: FormattedTransaction) => {
-    console.log("Editar transação:", transaction);
-    toast({
-      title: "Editar transação",
-      description: "Funcionalidade de edição será implementada em breve.",
-    });
+    const original = transactions.find((t) => t.id === transaction.id);
+    if (!original) return;
+    setEditingTransaction(original);
+
+    if (transaction.type === "income") setIsIncomeDialogOpen(true);
+    if (transaction.type === "expense") setIsExpenseDialogOpen(true);
+    if (transaction.type === "transfer") setIsTransferDialogOpen(true);
   };
 
   const handleDeleteTransaction = async (id: string) => {
@@ -245,22 +290,49 @@ const Index = () => {
         <TransactionDialog
           type="income"
           isOpen={isIncomeDialogOpen}
-          onOpenChange={setIsIncomeDialogOpen}
+          onOpenChange={(open) => {
+            setIsIncomeDialogOpen(open);
+            if (!open) setEditingTransaction(null);
+          }}
           onSubmit={handleTransactionSubmit}
+          initialData={
+            editingTransaction &&
+            editingTransaction.transaction_type?.name === "Receita"
+              ? mapTransactionToFormData(editingTransaction)
+              : undefined
+          }
         />
 
         <TransactionDialog
           type="expense"
           isOpen={isExpenseDialogOpen}
-          onOpenChange={setIsExpenseDialogOpen}
+          onOpenChange={(open) => {
+            setIsExpenseDialogOpen(open);
+            if (!open) setEditingTransaction(null);
+          }}
           onSubmit={handleTransactionSubmit}
+          initialData={
+            editingTransaction &&
+            editingTransaction.transaction_type?.name === "Despesa"
+              ? mapTransactionToFormData(editingTransaction)
+              : undefined
+          }
         />
 
         <TransactionDialog
           type="transfer"
           isOpen={isTransferDialogOpen}
-          onOpenChange={setIsTransferDialogOpen}
+          onOpenChange={(open) => {
+            setIsTransferDialogOpen(open);
+            if (!open) setEditingTransaction(null);
+          }}
           onSubmit={handleTransactionSubmit}
+          initialData={
+            editingTransaction &&
+            editingTransaction.transaction_type?.name === "Transferência"
+              ? mapTransactionToFormData(editingTransaction)
+              : undefined
+          }
         />
       </div>
     </AccountsProvider>

@@ -18,6 +18,16 @@ export interface CreateTransactionData {
   type?: string;
 }
 
+export interface UpdateTransactionData {
+  installmentId: string;
+  transactionId: string;
+  description: string;
+  value: number;
+  date: string; // esperado YYYY-MM-DD
+  accountId?: string;
+  accountOutId?: string;
+}
+
 /** Garante usuário autenticado e retorna o objeto do user */
 const ensureUser = async () => {
   const { data, error } = await supabase.auth.getUser();
@@ -132,6 +142,45 @@ export const transactionsService = {
       return { transaction, installments: createdInstallments };
     } catch (error) {
       console.error("Erro ao criar transação:", error);
+      throw error;
+    }
+  },
+
+  async updateTransaction(input: UpdateTransactionData) {
+    try {
+      const user = await ensureUser();
+
+      const { data: installment, error: installmentError } = await supabase
+        .from("transactions_installments")
+        .update({
+          account_id: input.accountId ?? undefined,
+          account_out_id: input.accountOutId ?? undefined,
+          value: input.value,
+          date: input.date,
+          description: input.description,
+        })
+        .eq("id", input.installmentId)
+        .eq("user_id", user.id)
+        .select()
+        .single();
+
+      if (installmentError) throw installmentError;
+
+      const { error: transactionError } = await supabase
+        .from("transactions")
+        .update({
+          account_id: input.accountId ?? undefined,
+          account_out_id: input.accountOutId ?? undefined,
+          description: input.description,
+        })
+        .eq("id", input.transactionId)
+        .eq("user_id", user.id);
+
+      if (transactionError) throw transactionError;
+
+      return installment;
+    } catch (error) {
+      console.error("Erro ao atualizar transação:", error);
       throw error;
     }
   },
