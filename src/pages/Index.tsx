@@ -9,6 +9,30 @@ import { useToast } from "@/hooks/use-toast";
 import { useTransactions } from "@/hooks/useTransactions";
 import { AccountsProvider } from "@/contexts/AccountsContext";
 
+interface TransactionFormValues {
+  description: string;
+  account?: string;
+  accountOut?: string;
+  date: string;
+  value: string;
+  categories?: string[];
+  tags?: string[];
+  accountId?: string;
+  accountOutId?: string;
+  type: "income" | "expense" | "transfer";
+  installments?: number;
+}
+
+interface FormattedTransaction {
+  id: string;
+  name: string;
+  bank: string;
+  category: string;
+  value: number;
+  type: "income" | "expense" | "transfer";
+  date: string;
+}
+
 const Index = () => {
   const [isIncomeDialogOpen, setIsIncomeDialogOpen] = useState(false);
   const [isExpenseDialogOpen, setIsExpenseDialogOpen] = useState(false);
@@ -41,20 +65,22 @@ const Index = () => {
   ];
 
   // Formatação das transações para o componente TransactionList
-  const formattedTransactions = transactions.map((transaction) => ({
-    id: transaction.id,
-    name: transaction.description || "Sem descrição",
-    bank: transaction.account?.name || "N/A",
-    category: "Outros", // Por enquanto, até implementarmos as categorias
-    value: transaction.value,
-    type:
-      transaction.transaction_type?.name === "Receita"
-        ? ("income" as const)
-        : transaction.transaction_type?.name === "Despesa"
-        ? ("expense" as const)
-        : ("transfer" as const),
-    date: new Date(transaction.date).toLocaleDateString("pt-BR"),
-  }));
+  const formattedTransactions: FormattedTransaction[] = transactions.map(
+    (transaction) => ({
+      id: transaction.id,
+      name: transaction.description || "Sem descrição",
+      bank: transaction.account?.name || "N/A",
+      category: "Outros", // Por enquanto, até implementarmos as categorias
+      value: transaction.value,
+      type:
+        transaction.transaction_type?.name === "Receita"
+          ? ("income" as const)
+          : transaction.transaction_type?.name === "Despesa"
+          ? ("expense" as const)
+          : ("transfer" as const),
+      date: new Date(transaction.date).toLocaleDateString("pt-BR"),
+    })
+  );
 
   // Formatação das contas para o componente AccountBalance
   const formattedAccounts = accounts.map((account) => ({
@@ -74,7 +100,7 @@ const Index = () => {
     date: string;
   };
 
-  const handleTransactionSubmit = async (data: TransactionSubmitData) => {
+  const handleTransactionSubmit = async (data: TransactionFormValues) => {
     try {
       // Encontrar o tipo de transação baseado no tipo do diálogo
       enum TransactionType {
@@ -85,10 +111,12 @@ const Index = () => {
 
       await createTransaction({
         description: data.description,
-        value: data.value,
-        accountId: data.accountId,
-        accountOutId: data.accountOutId,
-        transactionTypeId: TransactionType[data.type] || 1,
+        value: Number(data.value),
+        account: data.account,
+        accountOut: data.accountOut,
+        accountId: data.account,
+        accountOutId: data.accountOut,
+        transactionTypeId: String(TransactionType[data.type] || 1),
         installments: data.installments || 1,
         date: data.date,
       });
@@ -102,7 +130,7 @@ const Index = () => {
     }
   };
 
-  const handleEditTransaction = (transaction: unknown) => {
+  const handleEditTransaction = (transaction: FormattedTransaction) => {
     console.log("Editar transação:", transaction);
     toast({
       title: "Editar transação",
