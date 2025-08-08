@@ -166,7 +166,7 @@ const Index = () => {
   ): TransactionDialogFormData => ({
     description: transaction.description || "",
     accountId: transaction.account_id?.toString() || "",
-    accountOutId: transaction.account_out_id?.toString() || "",
+    accountOutId: transaction.account_out_id?.toString(),
     date: new Date(transaction.date).toISOString().split("T")[0],
     value: transaction.value?.toString() || "",
     tags: [],
@@ -196,8 +196,8 @@ const Index = () => {
           transactionId: editingTransaction.transaction_id,
           description: data.description,
           value: Number(data.value),
-          accountId: data.accountId,
-          accountOutId: data.accountOutId,
+          accountId: data.accountId || undefined,
+          accountOutId: data.accountOutId || undefined,
           date: data.date,
           subTransactions:
             data.subTransactions?.map((st) => ({
@@ -213,8 +213,8 @@ const Index = () => {
           value: Number(data.value),
           account: data.account,
           accountOut: data.accountOutId,
-          accountId: data.accountId,
-          accountOutId: data.accountOut,
+          accountId: data.accountId || undefined,
+          accountOutId: data.accountOut || undefined,
           transactionTypeId: String(TransactionType[data.type] || 1),
           installments: data.installments || 1,
           date: data.date,

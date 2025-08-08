@@ -103,9 +103,9 @@ export const transactionsService = {
       // 1) Criar a transação principal
       const transactionData: TransactionInsert = {
         user_id: user.id,
-        account_id: input.accountId ?? undefined,
-        account_out_id: input.accountOutId ?? undefined,
-        transaction_type_id: input.transactionTypeId ?? undefined,
+        account_id: input.accountId || undefined,
+        account_out_id: input.accountOutId || undefined,
+        transaction_type_id: input.transactionTypeId || undefined,
         total_installments: installments,
         description: input.description,
       };
@@ -163,7 +163,7 @@ export const transactionsService = {
           (st) => ({
             transactions_installments_id: firstInstallmentId,
             value: st.value,
-            category_id: st.subCategoryId ? null : st.categoryId || null,
+            category_id: st.categoryId || null,
             sub_category_id: st.subCategoryId || null,
           })
         );
@@ -207,8 +207,8 @@ export const transactionsService = {
       const { data: installment, error: installmentError } = await supabase
         .from("transactions_installments")
         .update({
-          account_id: input.accountId ?? undefined,
-          account_out_id: input.accountOutId ?? undefined,
+          account_id: input.accountId || undefined,
+          account_out_id: input.accountOutId || undefined,
           value: totalValue,
           date: input.date,
           description: input.description,
@@ -223,8 +223,8 @@ export const transactionsService = {
       const { error: transactionError } = await supabase
         .from("transactions")
         .update({
-          account_id: input.accountId ?? undefined,
-          account_out_id: input.accountOutId ?? undefined,
+          account_id: input.accountId || undefined,
+          account_out_id: input.accountOutId || undefined,
           description: input.description,
         })
         .eq("id", input.transactionId)
@@ -253,7 +253,7 @@ export const transactionsService = {
             (st) => ({
               transactions_installments_id: input.installmentId,
               value: st.value,
-              category_id: st.subCategoryId ? null : st.categoryId || null,
+              category_id: st.categoryId || null,
               sub_category_id: st.subCategoryId || null,
             })
           );
