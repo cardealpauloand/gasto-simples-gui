@@ -17,6 +17,7 @@ import {
   TRANSACTION_TYPE_FROM_FORM,
   TRANSACTION_TYPE_TO_FORM,
 } from "@/constants/transactionType";
+import { calculateCategoryTotals } from "@/lib/calculateCategoryTotals";
 
 interface TransactionFormValues {
   description: string;
@@ -150,28 +151,7 @@ const Index = () => {
       };
     });
 
-  const expenseTotals = transactions.reduce<Record<string, number>>(
-    (acc, transaction) => {
-      if (Number(transaction.transaction_type_id) !== TransactionType.EXPENSE)
-        return acc;
-      if (transaction.sub_transactions?.length) {
-        transaction.sub_transactions.forEach((st) => {
-          const categoryName = st.category_id
-            ? categories.find((c) => c.id === st.category_id)?.name || "Outros"
-            : categories.find((c) =>
-                c.sub_categories?.some((sc) => sc.id === st.sub_category_id)
-              )?.name || "Outros";
-          const value = Number(st.value) || 0;
-          acc[categoryName] = (acc[categoryName] || 0) + value;
-        });
-      } else {
-        const value = Number(transaction.value) || 0;
-        acc["Outros"] = (acc["Outros"] || 0) + value;
-      }
-      return acc;
-    },
-    {}
-  );
+  const expenseTotals = calculateCategoryTotals(transactions, categories);
 
   const categoryData = Object.entries(expenseTotals).map(
     ([name, value], index) => ({
