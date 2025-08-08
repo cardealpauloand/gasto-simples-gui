@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link, useParams } from "react-router-dom";
-import { Menu, User } from "lucide-react";
+import { useNavigate, useParams } from "react-router-dom";
+import { User } from "lucide-react";
+import HamburgerMenu from "@/components/HamburgerMenu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -99,11 +100,7 @@ const AccountForm = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" asChild>
-                <Link to="/">
-                  <Menu className="h-5 w-5" />
-                </Link>
-              </Button>
+              <HamburgerMenu />
               <h1 className="text-xl font-bold text-foreground">
                 {isEditing ? "Editar Conta" : "Cadastrar Conta"}
               </h1>

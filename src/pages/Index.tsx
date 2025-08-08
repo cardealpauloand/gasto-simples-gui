@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Plus, Minus, ArrowRightLeft, Menu, User } from "lucide-react";
+import { Plus, Minus, ArrowRightLeft, User } from "lucide-react";
+import HamburgerMenu from "@/components/HamburgerMenu";
 import type { Database } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
@@ -249,9 +250,7 @@ const Index = () => {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
               <div className="flex items-center gap-4">
-                <Button variant="ghost" size="icon">
-                  <Menu className="h-5 w-5" />
-                </Button>
+                <HamburgerMenu />
                 <h1 className="text-xl font-bold text-foreground">
                   Meu Gestor de Gastos
                 </h1>

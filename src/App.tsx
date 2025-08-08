@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import AccountCreate from "./pages/AccountCreate";
+import Accounts from "./pages/Accounts";
 
 const queryClient = new QueryClient();
 
@@ -17,6 +18,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/accounts" element={<Accounts />} />
           <Route path="/accounts/new" element={<AccountCreate />} />
           <Route path="/accounts/:id/edit" element={<AccountCreate />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
