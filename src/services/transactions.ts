@@ -22,8 +22,8 @@ export interface CreateTransactionData {
   type?: string;
   subTransactions?: {
     value: number;
-    categoryId?: string;
-    subCategoryId?: string;
+    categoryIds?: string[];
+    subCategoryIds?: string[];
   }[];
 }
 
@@ -37,8 +37,8 @@ export interface UpdateTransactionData {
   accountOutId?: string;
   subTransactions?: {
     value: number;
-    categoryId?: string;
-    subCategoryId?: string;
+    categoryIds?: string[];
+    subCategoryIds?: string[];
   }[];
 }
 
@@ -98,6 +98,9 @@ export const transactionsService = {
     try {
       const user = await ensureUser();
       const installments = input.installments ?? 1;
+      const totalValue = input.subTransactions?.length
+        ? input.subTransactions.reduce((sum, st) => sum + st.value, 0)
+        : input.value;
 
       // 1) Criar a transação principal
       const transactionData: TransactionInsert = {
@@ -130,7 +133,7 @@ export const transactionsService = {
             user_id: user.id,
             account_id: input.accountId,
             transaction_type_id: input.transactionTypeId,
-            value: input.value,
+            value: totalValue,
             date: toYMD(date),
             installment_number: i + 1,
             description:
@@ -180,11 +183,20 @@ export const transactionsService = {
         }
 
         const categoryPayload: TransactionCategoryInsert[] = subsData
-          .map((sub, index) => ({
-            transactions_sub_id: sub.id,
-            category_id: input.subTransactions![index].categoryId,
-            sub_category_id: input.subTransactions![index].subCategoryId,
-          }))
+          .flatMap((sub, index) => {
+            const st = input.subTransactions![index];
+            const categories =
+              st.categoryIds?.map((categoryId) => ({
+                transactions_sub_id: sub.id,
+                category_id: categoryId,
+              })) || [];
+            const subCategories =
+              st.subCategoryIds?.map((subCategoryId) => ({
+                transactions_sub_id: sub.id,
+                sub_category_id: subCategoryId,
+              })) || [];
+            return [...categories, ...subCategories];
+          })
           .filter(
             (c) => c.category_id !== undefined || c.sub_category_id !== undefined
           );
@@ -229,12 +241,16 @@ export const transactionsService = {
     try {
       const user = await ensureUser();
 
+      const totalValue = input.subTransactions?.length
+        ? input.subTransactions.reduce((sum, st) => sum + st.value, 0)
+        : input.value;
+
       const { data: installment, error: installmentError } = await supabase
         .from("transactions_installments")
         .update({
           account_id: input.accountId ?? undefined,
           account_out_id: input.accountOutId ?? undefined,
-          value: input.value,
+          value: totalValue,
           date: input.date,
           description: input.description,
         })
@@ -297,11 +313,20 @@ export const transactionsService = {
           if (subsError) throw subsError;
 
           const categoryPayload: TransactionCategoryInsert[] = subsData
-            .map((sub, index) => ({
-              transactions_sub_id: sub.id,
-              category_id: input.subTransactions![index].categoryId,
-              sub_category_id: input.subTransactions![index].subCategoryId,
-            }))
+            .flatMap((sub, index) => {
+              const st = input.subTransactions![index];
+              const categories =
+                st.categoryIds?.map((categoryId) => ({
+                  transactions_sub_id: sub.id,
+                  category_id: categoryId,
+                })) || [];
+              const subCategories =
+                st.subCategoryIds?.map((subCategoryId) => ({
+                  transactions_sub_id: sub.id,
+                  sub_category_id: subCategoryId,
+                })) || [];
+              return [...categories, ...subCategories];
+            })
             .filter(
               (c) => c.category_id !== undefined || c.sub_category_id !== undefined
             );

@@ -24,7 +24,11 @@ interface TransactionFormValues {
   accountOutId?: string;
   type: "income" | "expense" | "transfer";
   installments?: number;
-  subTransactions?: { value: string; categoryId?: string; subCategoryId?: string }[];
+  subTransactions?: {
+    value: string;
+    categoryIds?: string[];
+    subCategoryIds?: string[];
+  }[];
 }
 
 interface FormattedTransaction {
@@ -54,7 +58,11 @@ type TransactionDialogFormData = {
   date: string;
   value: string;
   tags: string[];
-  subTransactions: { value: string; categoryId?: string; subCategoryId?: string }[];
+  subTransactions: {
+    value: string;
+    categoryIds?: string[];
+    subCategoryIds?: string[];
+  }[];
 };
 
 const Index = () => {
@@ -167,9 +175,14 @@ const Index = () => {
     subTransactions:
       transaction.sub_transactions?.map((st) => ({
         value: st.value?.toString() || "",
-        categoryId: st.transactions_category?.[0]?.category_id || undefined,
-        subCategoryId:
-          st.transactions_category?.[0]?.sub_category_id || undefined,
+        categoryIds:
+          st.transactions_category
+            ?.map((tc) => tc.category_id)
+            .filter((id): id is string => !!id) || [],
+        subCategoryIds:
+          st.transactions_category
+            ?.map((tc) => tc.sub_category_id)
+            .filter((id): id is string => !!id) || [],
       })) || [],
   });
 
@@ -193,8 +206,8 @@ const Index = () => {
           subTransactions:
             data.subTransactions?.map((st) => ({
               value: Number(st.value),
-              categoryId: st.categoryId,
-              subCategoryId: st.subCategoryId,
+              categoryIds: st.categoryIds,
+              subCategoryIds: st.subCategoryIds,
             })) || [],
         });
         setEditingTransaction(null);
@@ -212,8 +225,8 @@ const Index = () => {
           subTransactions:
             data.subTransactions?.map((st) => ({
               value: Number(st.value),
-              categoryId: st.categoryId,
-              subCategoryId: st.subCategoryId,
+              categoryIds: st.categoryIds,
+              subCategoryIds: st.subCategoryIds,
             })) || [],
         });
       }
