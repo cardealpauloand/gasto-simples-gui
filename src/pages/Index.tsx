@@ -12,6 +12,11 @@ import { useToast } from "@/hooks/use-toast";
 import { useTransactions } from "@/hooks/useTransactions";
 import { AccountsProvider } from "@/contexts/AccountsContext";
 import { accountsService } from "@/services/accounts";
+import {
+  TransactionType,
+  TRANSACTION_TYPE_FROM_FORM,
+  TRANSACTION_TYPE_TO_FORM,
+} from "@/constants/transactionType";
 
 interface TransactionFormValues {
   description: string;
@@ -46,7 +51,6 @@ type TransactionRow =
   Database["public"]["Tables"]["transactions_installments"]["Row"] & {
     account?: { name: string } | null;
     account_out?: { name: string } | null;
-    transaction_type?: { name: string } | null;
     sub_transactions?: Database["public"]["Tables"]["transactions_sub"]["Row"][];
   };
 
@@ -122,37 +126,38 @@ const Index = () => {
         return ["Outros"];
       })();
 
+      const typeId = Number(
+        transaction.transaction_type_id
+      ) as TransactionType;
       return {
         id: transaction.id,
         transactionId: transaction.transaction_id,
         name: transaction.description || "Sem descrição",
         bank:
-          transaction.transaction_type?.name === "Receita"
+          typeId === TransactionType.INCOME
             ? transaction.account?.name || "N/A"
-            : transaction.transaction_type?.name === "Transferência"
+            : typeId === TransactionType.TRANSFER
             ? `${transaction.account_out?.name || "N/A"} → ${
                 transaction.account?.name || "N/A"
               }`
             : transaction.account_out?.name || "N/A",
         categories: categoryNames,
         value:
-          transaction.transaction_type?.name === "Despesa" ||
-          transaction.transaction_type?.name === "Transferência"
+          typeId === TransactionType.EXPENSE ||
+          typeId === TransactionType.TRANSFER
             ? -transaction.value
             : transaction.value,
-        type:
-          transaction.transaction_type?.name === "Receita"
-            ? ("income" as const)
-            : transaction.transaction_type?.name === "Despesa"
-            ? ("expense" as const)
-            : ("transfer" as const),
+        type: TRANSACTION_TYPE_TO_FORM[typeId],
         date: new Date(transaction.date).toLocaleDateString("pt-BR"),
       };
     });
 
   const expenseTotals = transactions.reduce<Record<string, number>>(
     (acc, transaction) => {
-      if (transaction.transaction_type?.name !== "Despesa") return acc;
+      if (
+        Number(transaction.transaction_type_id) !== TransactionType.EXPENSE
+      )
+        return acc;
       if (transaction.sub_transactions?.length) {
         transaction.sub_transactions.forEach((st) => {
           const categoryName = st.category_id
@@ -221,15 +226,15 @@ const Index = () => {
   const mapTransactionToFormData = (
     transaction: TransactionRow
   ): TransactionDialogFormData => {
-    const typeName = transaction.transaction_type?.name;
+    const typeId = Number(transaction.transaction_type_id) as TransactionType;
     let accountId = "";
     let accountOutId: string | undefined;
 
-    if (typeName === "Receita") {
+    if (typeId === TransactionType.INCOME) {
       accountId = transaction.account_id?.toString() || "";
-    } else if (typeName === "Despesa") {
+    } else if (typeId === TransactionType.EXPENSE) {
       accountId = transaction.account_out_id?.toString() || "";
-    } else if (typeName === "Transferência") {
+    } else if (typeId === TransactionType.TRANSFER) {
       accountId = transaction.account_out_id?.toString() || "";
       accountOutId = transaction.account_id?.toString() || "";
     }
@@ -257,13 +262,6 @@ const Index = () => {
 
   const handleTransactionSubmit = async (data: TransactionFormValues) => {
     try {
-      // Encontrar o tipo de transação baseado no tipo do diálogo
-      enum TransactionType {
-        income = 1,
-        expense = 2,
-        transfer = 3,
-      }
-
       let accountId: string | undefined;
       let accountOutId: string | undefined;
 
@@ -298,7 +296,9 @@ const Index = () => {
           value: Number(data.value),
           accountId,
           accountOutId,
-          transactionTypeId: String(TransactionType[data.type] || 1),
+          transactionTypeId: String(
+            TRANSACTION_TYPE_FROM_FORM[data.type]
+          ),
           installments: data.installments || 1,
           date: data.date,
           subTransactions:
@@ -466,7 +466,8 @@ const Index = () => {
           categories={categories}
           initialData={
             editingTransaction &&
-            editingTransaction.transaction_type?.name === "Receita"
+            Number(editingTransaction.transaction_type_id) ===
+              TransactionType.INCOME
               ? mapTransactionToFormData(editingTransaction)
               : undefined
           }
@@ -483,7 +484,8 @@ const Index = () => {
           categories={categories}
           initialData={
             editingTransaction &&
-            editingTransaction.transaction_type?.name === "Despesa"
+            Number(editingTransaction.transaction_type_id) ===
+              TransactionType.EXPENSE
               ? mapTransactionToFormData(editingTransaction)
               : undefined
           }
@@ -500,7 +502,8 @@ const Index = () => {
           categories={categories}
           initialData={
             editingTransaction &&
-            editingTransaction.transaction_type?.name === "Transferência"
+            Number(editingTransaction.transaction_type_id) ===
+              TransactionType.TRANSFER
               ? mapTransactionToFormData(editingTransaction)
               : undefined
           }
