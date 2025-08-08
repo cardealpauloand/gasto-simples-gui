@@ -18,13 +18,18 @@ const Accounts = () => {
 
   const accountTotals = transactions.reduce<Record<string, number>>(
     (acc, transaction) => {
-      const accountId = transaction.account_id;
-      if (!accountId) return acc;
-      const typeName = transaction.transaction_type?.name;
       const value = transaction.value || 0;
-      const impact =
-        typeName === "Despesa" || typeName === "Transferência" ? -value : value;
-      acc[accountId] = (acc[accountId] || 0) + impact;
+
+      if (transaction.account_out_id) {
+        acc[transaction.account_out_id] =
+          (acc[transaction.account_out_id] || 0) - value;
+      }
+
+      if (transaction.account_id) {
+        acc[transaction.account_id] =
+          (acc[transaction.account_id] || 0) + value;
+      }
+
       return acc;
     },
     {}

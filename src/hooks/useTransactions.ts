@@ -10,6 +10,7 @@ import type { Database } from "@/integrations/supabase/types";
 type Transaction =
   Database["public"]["Tables"]["transactions_installments"]["Row"] & {
     account?: { name: string } | null;
+    account_out?: { name: string } | null;
     transaction_type?: { name: string } | null;
     sub_transactions?: Database["public"]["Tables"]["transactions_sub"]["Row"][];
   };

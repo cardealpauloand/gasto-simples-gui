@@ -210,6 +210,7 @@ export type Database = {
       transactions_installments: {
         Row: {
           account_id: string | null
+          account_out_id: string | null
           created_at: string | null
           date: string
           description: string | null
@@ -222,6 +223,7 @@ export type Database = {
         }
         Insert: {
           account_id?: string | null
+          account_out_id?: string | null
           created_at?: string | null
           date: string
           description?: string | null
@@ -234,6 +236,7 @@ export type Database = {
         }
         Update: {
           account_id?: string | null
+          account_out_id?: string | null
           created_at?: string | null
           date?: string
           description?: string | null
@@ -248,6 +251,13 @@ export type Database = {
           {
             foreignKeyName: "transactions_installments_account_id_fkey"
             columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "account"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_installments_account_out_id_fkey"
+            columns: ["account_out_id"]
             isOneToOne: false
             referencedRelation: "account"
             referencedColumns: ["id"]

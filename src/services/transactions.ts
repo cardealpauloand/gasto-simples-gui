@@ -130,6 +130,7 @@ export const transactionsService = {
             transaction_id: transaction.id,
             user_id: user.id,
             account_id: input.accountId,
+            account_out_id: input.accountOutId,
             transaction_type_id: input.transactionTypeId,
             value: totalValue,
             date: toYMD(date),
@@ -284,6 +285,7 @@ export const transactionsService = {
           *,
           transaction_id,
           account:account_id(name),
+          account_out:account_out_id(name),
           transaction_type:transaction_type_id(name),
           sub_transactions:transactions_sub(*)
         `

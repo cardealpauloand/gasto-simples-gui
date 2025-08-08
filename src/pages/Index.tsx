@@ -45,8 +45,9 @@ interface FormattedTransaction {
 type TransactionRow =
   Database["public"]["Tables"]["transactions_installments"]["Row"] & {
     account?: { name: string } | null;
+    account_out?: { name: string } | null;
     transaction_type?: { name: string } | null;
-  sub_transactions?: Database["public"]["Tables"]["transactions_sub"]["Row"][];
+    sub_transactions?: Database["public"]["Tables"]["transactions_sub"]["Row"][];
   };
 
 type TransactionDialogFormData = {
@@ -101,12 +102,23 @@ const Index = () => {
   ];
 
   // Formatação das transações para o componente TransactionList
-  const formattedTransactions: FormattedTransaction[] = transactions.map(
-    (transaction) => ({
+  const formattedTransactions: FormattedTransaction[] = transactions
+    .slice()
+    .sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    )
+    .map((transaction) => ({
       id: transaction.id,
       transactionId: transaction.transaction_id,
       name: transaction.description || "Sem descrição",
-      bank: transaction.account?.name || "N/A",
+      bank:
+        transaction.transaction_type?.name === "Receita"
+          ? transaction.account?.name || "N/A"
+          : transaction.transaction_type?.name === "Transferência"
+          ? `${transaction.account_out?.name || "N/A"} → ${
+              transaction.account?.name || "N/A"
+            }`
+          : transaction.account_out?.name || "N/A",
       category: "Outros", // Por enquanto, até implementarmos as categorias
       value:
         transaction.transaction_type?.name === "Despesa" ||
@@ -120,24 +132,23 @@ const Index = () => {
           ? ("expense" as const)
           : ("transfer" as const),
       date: new Date(transaction.date).toLocaleDateString("pt-BR"),
-    })
-  );
+    }));
 
   // Calcula o resultado das transações por conta
   const accountTotals = transactions.reduce<Record<string, number>>(
     (acc, transaction) => {
-      const accountId = transaction.account_id;
-      if (!accountId) return acc;
-
-      const typeName = transaction.transaction_type?.name;
       const value = transaction.value || 0;
 
-      const impact =
-        typeName === "Despesa" || typeName === "Transferência"
-          ? -value
-          : value;
+      if (transaction.account_out_id) {
+        acc[transaction.account_out_id] =
+          (acc[transaction.account_out_id] || 0) - value;
+      }
 
-      acc[accountId] = (acc[accountId] || 0) + impact;
+      if (transaction.account_id) {
+        acc[transaction.account_id] =
+          (acc[transaction.account_id] || 0) + value;
+      }
+
       return acc;
     },
     {}
@@ -163,24 +174,39 @@ const Index = () => {
 
   const mapTransactionToFormData = (
     transaction: TransactionRow
-  ): TransactionDialogFormData => ({
-    description: transaction.description || "",
-    accountId: transaction.account_id?.toString() || "",
-    accountOutId: transaction.account_out_id?.toString(),
-    date: new Date(transaction.date).toISOString().split("T")[0],
-    value: transaction.value?.toString() || "",
-    tags: [],
-    subTransactions:
-      transaction.sub_transactions?.map((st) => ({
-        value: st.value?.toString() || "",
-        categoryId:
-          st.category_id ||
-          categories.find((c) =>
-            c.sub_categories?.some((sc) => sc.id === st.sub_category_id)
-          )?.id || "",
-        subCategoryId: st.sub_category_id || "",
-      })) || [],
-  });
+  ): TransactionDialogFormData => {
+    const typeName = transaction.transaction_type?.name;
+    let accountId = "";
+    let accountOutId: string | undefined;
+
+    if (typeName === "Receita") {
+      accountId = transaction.account_id?.toString() || "";
+    } else if (typeName === "Despesa") {
+      accountId = transaction.account_out_id?.toString() || "";
+    } else if (typeName === "Transferência") {
+      accountId = transaction.account_out_id?.toString() || "";
+      accountOutId = transaction.account_id?.toString() || "";
+    }
+
+    return {
+      description: transaction.description || "",
+      accountId,
+      accountOutId,
+      date: new Date(transaction.date).toISOString().split("T")[0],
+      value: transaction.value?.toString() || "",
+      tags: [],
+      subTransactions:
+        transaction.sub_transactions?.map((st) => ({
+          value: st.value?.toString() || "",
+          categoryId:
+            st.category_id ||
+            categories.find((c) =>
+              c.sub_categories?.some((sc) => sc.id === st.sub_category_id)
+            )?.id || "",
+          subCategoryId: st.sub_category_id || "",
+        })) || [],
+    };
+  };
 
   const handleTransactionSubmit = async (data: TransactionFormValues) => {
     try {
@@ -190,14 +216,26 @@ const Index = () => {
         expense = 2,
         transfer = 3,
       }
+
+      let accountId: string | undefined;
+      let accountOutId: string | undefined;
+
+      if (data.type === "income") {
+        accountId = data.accountId || undefined;
+      } else if (data.type === "expense") {
+        accountOutId = data.accountId || undefined;
+      } else if (data.type === "transfer") {
+        accountOutId = data.accountId || undefined;
+        accountId = data.accountOutId || undefined;
+      }
       if (editingTransaction) {
         await updateTransaction({
           installmentId: editingTransaction.id,
           transactionId: editingTransaction.transaction_id,
           description: data.description,
           value: Number(data.value),
-          accountId: data.accountId || undefined,
-          accountOutId: data.accountOutId || undefined,
+          accountId,
+          accountOutId,
           date: data.date,
           subTransactions:
             data.subTransactions?.map((st) => ({
@@ -211,10 +249,8 @@ const Index = () => {
         await createTransaction({
           description: data.description,
           value: Number(data.value),
-          account: data.account,
-          accountOut: data.accountOutId,
-          accountId: data.accountId || undefined,
-          accountOutId: data.accountOut || undefined,
+          accountId,
+          accountOutId,
           transactionTypeId: String(TransactionType[data.type] || 1),
           installments: data.installments || 1,
           date: data.date,

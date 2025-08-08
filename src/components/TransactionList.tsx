@@ -50,9 +50,10 @@ export function TransactionList({ transactions, onEdit, onDelete }: TransactionL
         <h3 className="text-lg font-semibold mb-4 text-card-foreground">Transações Recentes</h3>
         
         {/* Header */}
-        <div className="grid grid-cols-5 gap-4 py-3 px-2 text-sm font-medium text-muted-foreground border-b">
+        <div className="grid grid-cols-6 gap-4 py-3 px-2 text-sm font-medium text-muted-foreground border-b">
           <div>Nome</div>
           <div>Banco</div>
+          <div>Data</div>
           <div>Tipo</div>
           <div className="text-right">Valor</div>
           <div className="text-center">Ações</div>
@@ -61,34 +62,37 @@ export function TransactionList({ transactions, onEdit, onDelete }: TransactionL
         {/* Transactions */}
         <div className="space-y-0">
           {transactions.map((transaction) => (
-            <div 
-              key={transaction.id} 
-              className="grid grid-cols-5 gap-4 py-4 px-2 border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors"
+            <div
+              key={transaction.id}
+              className="grid grid-cols-6 gap-4 py-4 px-2 border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors"
             >
-              <div className="flex flex-col">
+              <div className="flex items-center">
                 <span className="font-medium text-card-foreground">{transaction.name}</span>
-                <span className="text-xs text-muted-foreground">{transaction.date}</span>
               </div>
-              
+
               <div className="flex items-center">
                 <span className="text-sm text-muted-foreground">{transaction.bank}</span>
               </div>
-              
+
               <div className="flex items-center">
-                <Badge 
-                  variant="secondary" 
+                <span className="text-sm text-muted-foreground">{transaction.date}</span>
+              </div>
+
+              <div className="flex items-center">
+                <Badge
+                  variant="secondary"
                   className={`text-xs ${getCategoryColor(transaction.category)}`}
                 >
                   {transaction.category}
                 </Badge>
               </div>
-              
+
               <div className="flex items-center justify-end">
                 <span className={`font-semibold ${getValueColor(transaction.value, transaction.type)}`}>
                   {formatCurrency(transaction.value)}
                 </span>
               </div>
-              
+
               <div className="flex items-center justify-center">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -98,17 +102,17 @@ export function TransactionList({ transactions, onEdit, onDelete }: TransactionL
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-32">
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                       onClick={() => onEdit?.(transaction)}
                       className="cursor-pointer"
                     >
                       <Edit className="mr-2 h-4 w-4" />
                       Editar
                     </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => onDelete?.(transaction.transactionId)}
-                        className="cursor-pointer text-danger focus:text-danger"
-                      >
+                    <DropdownMenuItem
+                      onClick={() => onDelete?.(transaction.transactionId)}
+                      className="cursor-pointer text-danger focus:text-danger"
+                    >
                       <Trash2 className="mr-2 h-4 w-4" />
                       Excluir
                     </DropdownMenuItem>
