@@ -37,7 +37,11 @@ export function AccountBalance({ accounts, onEdit, onDelete }: AccountBalancePro
               <span className="text-xs text-muted-foreground">{account.type}</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-success">
+              <span
+                className={`font-semibold ${
+                  account.balance < 0 ? "text-danger" : "text-success"
+                }`}
+              >
                 {formatCurrency(account.balance)}
               </span>
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -63,7 +67,11 @@ export function AccountBalance({ accounts, onEdit, onDelete }: AccountBalancePro
             <div className="border-t border-border pt-3 mt-4">
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-card-foreground">Total</span>
-                <span className="font-bold text-lg text-success">
+                <span
+                  className={`font-bold text-lg ${
+                    getTotalBalance() < 0 ? "text-danger" : "text-success"
+                  }`}
+                >
                   {formatCurrency(getTotalBalance())}
                 </span>
               </div>
