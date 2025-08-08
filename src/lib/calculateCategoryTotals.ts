@@ -13,6 +13,7 @@ export type Category = Database["public"]["Tables"]["category"]["Row"] & {
 
 /**
  * Calculates total expense values grouped by parent category.
+ * Negative amounts reduce the category total, ensuring real totals.
  * Transactions without category information are grouped under "Outros".
  */
 export function calculateCategoryTotals(
@@ -30,7 +31,8 @@ export function calculateCategoryTotals(
   });
 
   return transactions.reduce<Record<string, number>>((acc, transaction) => {
-    if (Number(transaction.transaction_type_id) === TransactionType.EXPENSE) {
+    // Only consider expense transactions for category totals
+    if (Number(transaction.transaction_type_id) !== TransactionType.EXPENSE) {
       return acc;
     }
 
@@ -47,12 +49,12 @@ export function calculateCategoryTotals(
           categoryName = subCategoryMap.get(st.sub_category_id)!;
         }
 
-        const value = Math.abs(Number(st.value) || 0);
+        const value = Number(st.value) || 0;
 
         acc[categoryName] = (acc[categoryName] || 0) + value;
       });
     } else {
-      const value = Math.abs(Number(transaction.value) || 0);
+      const value = Number(transaction.value) || 0;
       acc["Outros"] = (acc["Outros"] || 0) + value;
     }
 
