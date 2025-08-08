@@ -36,7 +36,7 @@ interface FormattedTransaction {
   transactionId: string;
   name: string;
   bank: string;
-  category: string;
+  categories: string[];
   value: number;
   type: "income" | "expense" | "transfer";
   date: string;
@@ -85,13 +85,6 @@ const Index = () => {
     refetch,
   } = useTransactions();
 
-  // Dados de gráfico temporários - serão calculados baseados nas transações reais
-  const categoryData = [
-    { name: "Lazer", value: 450, color: "hsl(var(--chart-4))" },
-    { name: "Comida", value: 320, color: "hsl(var(--chart-2))" },
-    { name: "Outros", value: 180, color: "hsl(var(--chart-5))" },
-  ];
-
   const investmentData = [
     { month: "Jan", acoes: 5000, rendaFixa: 3000, outros: 1000 },
     { month: "Fev", acoes: 5200, rendaFixa: 3100, outros: 1100 },
@@ -104,35 +97,88 @@ const Index = () => {
   // Formatação das transações para o componente TransactionList
   const formattedTransactions: FormattedTransaction[] = transactions
     .slice()
-    .sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-    )
-    .map((transaction) => ({
-      id: transaction.id,
-      transactionId: transaction.transaction_id,
-      name: transaction.description || "Sem descrição",
-      bank:
-        transaction.transaction_type?.name === "Receita"
-          ? transaction.account?.name || "N/A"
-          : transaction.transaction_type?.name === "Transferência"
-          ? `${transaction.account_out?.name || "N/A"} → ${
-              transaction.account?.name || "N/A"
-            }`
-          : transaction.account_out?.name || "N/A",
-      category: "Outros", // Por enquanto, até implementarmos as categorias
-      value:
-        transaction.transaction_type?.name === "Despesa" ||
-        transaction.transaction_type?.name === "Transferência"
-          ? -transaction.value
-          : transaction.value,
-      type:
-        transaction.transaction_type?.name === "Receita"
-          ? ("income" as const)
-          : transaction.transaction_type?.name === "Despesa"
-          ? ("expense" as const)
-          : ("transfer" as const),
-      date: new Date(transaction.date).toLocaleDateString("pt-BR"),
-    }));
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .map((transaction) => {
+      const categoryNames = (() => {
+        if (transaction.sub_transactions?.length) {
+          const names = transaction.sub_transactions.map((st) => {
+            if (st.category_id) {
+              return (
+                categories.find((c) => c.id === st.category_id)?.name ||
+                "Outros"
+              );
+            }
+            if (st.sub_category_id) {
+              return (
+                categories.find((c) =>
+                  c.sub_categories?.some((sc) => sc.id === st.sub_category_id)
+                )?.name || "Outros"
+              );
+            }
+            return "Outros";
+          });
+          return Array.from(new Set(names));
+        }
+        return ["Outros"];
+      })();
+
+      return {
+        id: transaction.id,
+        transactionId: transaction.transaction_id,
+        name: transaction.description || "Sem descrição",
+        bank:
+          transaction.transaction_type?.name === "Receita"
+            ? transaction.account?.name || "N/A"
+            : transaction.transaction_type?.name === "Transferência"
+            ? `${transaction.account_out?.name || "N/A"} → ${
+                transaction.account?.name || "N/A"
+              }`
+            : transaction.account_out?.name || "N/A",
+        categories: categoryNames,
+        value:
+          transaction.transaction_type?.name === "Despesa" ||
+          transaction.transaction_type?.name === "Transferência"
+            ? -transaction.value
+            : transaction.value,
+        type:
+          transaction.transaction_type?.name === "Receita"
+            ? ("income" as const)
+            : transaction.transaction_type?.name === "Despesa"
+            ? ("expense" as const)
+            : ("transfer" as const),
+        date: new Date(transaction.date).toLocaleDateString("pt-BR"),
+      };
+    });
+
+  const expenseTotals = transactions.reduce<Record<string, number>>(
+    (acc, transaction) => {
+      if (transaction.transaction_type?.name !== "Despesa") return acc;
+      if (transaction.sub_transactions?.length) {
+        transaction.sub_transactions.forEach((st) => {
+          const categoryName = st.category_id
+            ? categories.find((c) => c.id === st.category_id)?.name || "Outros"
+            : categories.find((c) =>
+                c.sub_categories?.some((sc) => sc.id === st.sub_category_id)
+              )?.name || "Outros";
+          const value = Number(st.value) || 0;
+          acc[categoryName] = (acc[categoryName] || 0) + value;
+        });
+      } else {
+        const value = Number(transaction.value) || 0;
+        acc["Outros"] = (acc["Outros"] || 0) + value;
+      }
+      return acc;
+    },
+    {}
+  );
+
+  const categoryData = Object.entries(expenseTotals).map(
+    ([name, value], index) => ({
+      name,
+      value,
+      color: `hsl(var(--chart-${(index % 5) + 1}))`,
+    })
+  );
 
   // Calcula o resultado das transações por conta
   const accountTotals = transactions.reduce<Record<string, number>>(
@@ -202,7 +248,8 @@ const Index = () => {
             st.category_id ||
             categories.find((c) =>
               c.sub_categories?.some((sc) => sc.id === st.sub_category_id)
-            )?.id || "",
+            )?.id ||
+            "",
           subCategoryId: st.sub_category_id || "",
         })) || [],
     };
@@ -299,7 +346,8 @@ const Index = () => {
       });
       await refetch();
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Erro desconhecido";
+      const message =
+        error instanceof Error ? error.message : "Erro desconhecido";
       toast({
         title: "Erro ao remover conta",
         description: message,

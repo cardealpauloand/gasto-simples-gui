@@ -8,7 +8,7 @@ interface Transaction {
   transactionId: string;
   name: string;
   bank: string;
-  category: string;
+  categories: string[];
   value: number;
   type: 'income' | 'expense' | 'transfer';
   date: string;
@@ -54,7 +54,7 @@ export function TransactionList({ transactions, onEdit, onDelete }: TransactionL
           <div>Nome</div>
           <div>Banco</div>
           <div>Data</div>
-          <div>Tipo</div>
+          <div>Categoria</div>
           <div className="text-right">Valor</div>
           <div className="text-center">Ações</div>
         </div>
@@ -78,13 +78,16 @@ export function TransactionList({ transactions, onEdit, onDelete }: TransactionL
                 <span className="text-sm text-muted-foreground">{transaction.date}</span>
               </div>
 
-              <div className="flex items-center">
-                <Badge
-                  variant="secondary"
-                  className={`text-xs ${getCategoryColor(transaction.category)}`}
-                >
-                  {transaction.category}
-                </Badge>
+              <div className="flex items-center gap-1 flex-wrap">
+                {transaction.categories.map((category) => (
+                  <Badge
+                    key={category}
+                    variant="secondary"
+                    className={`text-xs ${getCategoryColor(category)}`}
+                  >
+                    {category}
+                  </Badge>
+                ))}
               </div>
 
               <div className="flex items-center justify-end">
