@@ -52,6 +52,49 @@ export const accountsService = {
     if (error) throw error;
     return data;
   },
+
+  async getAccount(id: string) {
+    const user = await ensureUser();
+    const { data, error } = await supabase
+      .from("account")
+      .select(`
+        *,
+        account_group:account_group_id(name)
+      `)
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  async updateAccount(id: string, input: {
+    name: string;
+    initialValue?: number;
+    accountGroupId?: string;
+  }) {
+    const user = await ensureUser();
+    const { error } = await supabase
+      .from("account")
+      .update({
+        name: input.name,
+        initial_value: input.initialValue ?? 0,
+        account_group_id: input.accountGroupId ?? null,
+      })
+      .eq("id", id)
+      .eq("user_id", user.id);
+    if (error) throw error;
+  },
+
+  async deleteAccount(id: string) {
+    const user = await ensureUser();
+    const { error } = await supabase
+      .from("account")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", user.id);
+    if (error) throw error;
+  },
 };
 
 export default accountsService;

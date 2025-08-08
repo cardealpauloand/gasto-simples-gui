@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Plus, Minus, ArrowRightLeft, Menu, User } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { FinancialChart } from "@/components/FinancialChart";
 import { TransactionList } from "@/components/TransactionList";
 import { AccountBalance } from "@/components/AccountBalance";
@@ -10,6 +10,7 @@ import { TransactionDialog } from "@/components/TransactionDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useTransactions } from "@/hooks/useTransactions";
 import { AccountsProvider } from "@/contexts/AccountsContext";
+import { accountsService } from "@/services/accounts";
 
 interface TransactionFormValues {
   description: string;
@@ -59,6 +60,7 @@ const Index = () => {
   const [editingTransaction, setEditingTransaction] =
     useState<TransactionRow | null>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const {
     transactions,
@@ -69,6 +71,7 @@ const Index = () => {
     createTransaction,
     deleteTransaction,
     updateTransaction,
+    refetch,
   } = useTransactions();
 
   // Dados de gráfico temporários - serão calculados baseados nas transações reais
@@ -215,6 +218,29 @@ const Index = () => {
     await deleteTransaction(id);
   };
 
+  const handleEditAccount = (id: string) => {
+    navigate(`/accounts/${id}/edit`);
+  };
+
+  const handleDeleteAccount = async (id: string) => {
+    try {
+      await accountsService.deleteAccount(id);
+      toast({
+        title: "Conta removida",
+        description: "A conta foi removida com sucesso.",
+        variant: "destructive",
+      });
+      await refetch();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Erro desconhecido";
+      toast({
+        title: "Erro ao remover conta",
+        description: message,
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <AccountsProvider value={accounts}>
       <div className="min-h-screen bg-background">
@@ -309,7 +335,11 @@ const Index = () => {
               />
 
               {/* Saldo das Contas */}
-              <AccountBalance accounts={formattedAccounts} />
+              <AccountBalance
+                accounts={formattedAccounts}
+                onEdit={handleEditAccount}
+                onDelete={handleDeleteAccount}
+              />
             </div>
           </div>
         </main>

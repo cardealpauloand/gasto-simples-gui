@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useParams } from "react-router-dom";
 import { Menu, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,13 +14,15 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { accountsService, type AccountGroup } from "@/services/accounts";
 
-const AccountCreate = () => {
+const AccountForm = () => {
   const [name, setName] = useState("");
   const [initialValue, setInitialValue] = useState("0");
   const [groups, setGroups] = useState<AccountGroup[]>([]);
   const [groupId, setGroupId] = useState("");
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const isEditing = Boolean(id);
 
   useEffect(() => {
     accountsService
@@ -35,25 +37,56 @@ const AccountCreate = () => {
           variant: "destructive",
         });
       });
-  }, [toast]);
+
+    if (isEditing && id) {
+      accountsService
+        .getAccount(id)
+        .then((account) => {
+          setName(account.name ?? "");
+          setInitialValue(String(account.initial_value ?? 0));
+          setGroupId(account.account_group_id ?? "");
+        })
+        .catch((error) => {
+          const message =
+            error instanceof Error ? error.message : "Erro desconhecido";
+          toast({
+            title: "Erro ao carregar conta",
+            description: message,
+            variant: "destructive",
+          });
+        });
+    }
+  }, [toast, isEditing, id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await accountsService.createAccount({
-        name,
-        initialValue: Number(initialValue),
-        accountGroupId: groupId || undefined,
-      });
-      toast({
-        title: "Conta criada",
-        description: `${name} foi adicionada com sucesso.`,
-      });
+      if (isEditing && id) {
+        await accountsService.updateAccount(id, {
+          name,
+          initialValue: Number(initialValue),
+          accountGroupId: groupId || undefined,
+        });
+        toast({
+          title: "Conta atualizada",
+          description: `${name} foi atualizada com sucesso.`,
+        });
+      } else {
+        await accountsService.createAccount({
+          name,
+          initialValue: Number(initialValue),
+          accountGroupId: groupId || undefined,
+        });
+        toast({
+          title: "Conta criada",
+          description: `${name} foi adicionada com sucesso.`,
+        });
+      }
       navigate("/");
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Erro desconhecido";
       toast({
-        title: "Erro ao criar conta",
+        title: isEditing ? "Erro ao atualizar conta" : "Erro ao criar conta",
         description: message,
         variant: "destructive",
       });
@@ -72,7 +105,7 @@ const AccountCreate = () => {
                 </Link>
               </Button>
               <h1 className="text-xl font-bold text-foreground">
-                Cadastrar Conta
+                {isEditing ? "Editar Conta" : "Cadastrar Conta"}
               </h1>
             </div>
 
@@ -136,4 +169,4 @@ const AccountCreate = () => {
   );
 };
 
-export default AccountCreate;
+export default AccountForm;
