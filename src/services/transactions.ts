@@ -4,6 +4,10 @@ import type { Database } from "@/integrations/supabase/types";
 type TransactionInsert = Database["public"]["Tables"]["transactions"]["Insert"];
 type TransactionInstallmentInsert =
   Database["public"]["Tables"]["transactions_installments"]["Insert"];
+type SubTransactionInsert =
+  Database["public"]["Tables"]["transactions_sub"]["Insert"];
+type TransactionCategoryInsert =
+  Database["public"]["Tables"]["transactions_category"]["Insert"];
 
 export interface CreateTransactionData {
   description: string;
@@ -16,6 +20,11 @@ export interface CreateTransactionData {
   accountOut?: string;
   transactionTypeId?: string;
   type?: string;
+  subTransactions?: {
+    value: number;
+    categoryId?: string;
+    subCategoryId?: string;
+  }[];
 }
 
 export interface UpdateTransactionData {
@@ -26,6 +35,11 @@ export interface UpdateTransactionData {
   date: string; // esperado YYYY-MM-DD
   accountId?: string;
   accountOutId?: string;
+  subTransactions?: {
+    value: number;
+    categoryId?: string;
+    subCategoryId?: string;
+  }[];
 }
 
 /** Garante usuário autenticado e retorna o objeto do user */
@@ -139,7 +153,72 @@ export const transactionsService = {
         throw installmentsError;
       }
 
-      return { transaction, installments: createdInstallments };
+      let createdSubTransactions: Database["public"]["Tables"]["transactions_sub"]["Row"][] = [];
+
+      if (input.subTransactions?.length && createdInstallments.length) {
+        const firstInstallmentId = createdInstallments[0].id;
+
+        const subsPayload: SubTransactionInsert[] = input.subTransactions.map(
+          (st) => ({
+            transactions_installments_id: firstInstallmentId,
+            value: st.value,
+          })
+        );
+
+        const { data: subsData, error: subsError } = await supabase
+          .from("transactions_sub")
+          .insert(subsPayload)
+          .select();
+
+        if (subsError) {
+          await supabase
+            .from("transactions_installments")
+            .delete()
+            .eq("transaction_id", transaction.id);
+          await supabase.from("transactions").delete().eq("id", transaction.id);
+          throw subsError;
+        }
+
+        const categoryPayload: TransactionCategoryInsert[] = subsData
+          .map((sub, index) => ({
+            transactions_sub_id: sub.id,
+            category_id: input.subTransactions![index].categoryId,
+            sub_category_id: input.subTransactions![index].subCategoryId,
+          }))
+          .filter(
+            (c) => c.category_id !== undefined || c.sub_category_id !== undefined
+          );
+
+        if (categoryPayload.length) {
+          const { error: categoryError } = await supabase
+            .from("transactions_category")
+            .insert(categoryPayload);
+
+          if (categoryError) {
+            await supabase
+              .from("transactions_sub")
+              .delete()
+              .in(
+                "id",
+                subsData.map((s) => s.id)
+              );
+            await supabase
+              .from("transactions_installments")
+              .delete()
+              .eq("transaction_id", transaction.id);
+            await supabase.from("transactions").delete().eq("id", transaction.id);
+            throw categoryError;
+          }
+        }
+
+        createdSubTransactions = subsData;
+      }
+
+      return {
+        transaction,
+        installments: createdInstallments,
+        subTransactions: createdSubTransactions,
+      };
     } catch (error) {
       console.error("Erro ao criar transação:", error);
       throw error;
@@ -178,6 +257,65 @@ export const transactionsService = {
 
       if (transactionError) throw transactionError;
 
+      // Atualizar sub transações
+      if (input.subTransactions) {
+        const { data: oldSubs, error: fetchSubsError } = await supabase
+          .from("transactions_sub")
+          .select("id")
+          .eq("transactions_installments_id", input.installmentId);
+
+        if (fetchSubsError) throw fetchSubsError;
+
+        if (oldSubs.length) {
+          await supabase
+            .from("transactions_category")
+            .delete()
+            .in(
+              "transactions_sub_id",
+              oldSubs.map((s) => s.id)
+            );
+
+          await supabase
+            .from("transactions_sub")
+            .delete()
+            .eq("transactions_installments_id", input.installmentId);
+        }
+
+        if (input.subTransactions.length) {
+          const subsPayload: SubTransactionInsert[] = input.subTransactions.map(
+            (st) => ({
+              transactions_installments_id: input.installmentId,
+              value: st.value,
+            })
+          );
+
+          const { data: subsData, error: subsError } = await supabase
+            .from("transactions_sub")
+            .insert(subsPayload)
+            .select();
+
+          if (subsError) throw subsError;
+
+          const categoryPayload: TransactionCategoryInsert[] = subsData
+            .map((sub, index) => ({
+              transactions_sub_id: sub.id,
+              category_id: input.subTransactions![index].categoryId,
+              sub_category_id: input.subTransactions![index].subCategoryId,
+            }))
+            .filter(
+              (c) => c.category_id !== undefined || c.sub_category_id !== undefined
+            );
+
+          if (categoryPayload.length) {
+            const { error: categoryError } = await supabase
+              .from("transactions_category")
+              .insert(categoryPayload);
+
+            if (categoryError) throw categoryError;
+          }
+        }
+      }
+
       return installment;
     } catch (error) {
       console.error("Erro ao atualizar transação:", error);
@@ -196,7 +334,11 @@ export const transactionsService = {
           *,
           transaction_id,
           account:account_id(name),
-          transaction_type:transaction_type_id(name)
+          transaction_type:transaction_type_id(name),
+          sub_transactions:transactions_sub(
+            *,
+            transactions_category(category_id, sub_category_id)
+          )
         `
         )
         .eq("user_id", user.id)

@@ -11,6 +11,9 @@ type Transaction =
   Database["public"]["Tables"]["transactions_installments"]["Row"] & {
     account?: { name: string } | null;
     transaction_type?: { name: string } | null;
+    sub_transactions?: (Database["public"]["Tables"]["transactions_sub"]["Row"] & {
+      transactions_category?: Database["public"]["Tables"]["transactions_category"]["Row"][];
+    })[];
   };
 
 type Account = Database["public"]["Tables"]["account"]["Row"] & {

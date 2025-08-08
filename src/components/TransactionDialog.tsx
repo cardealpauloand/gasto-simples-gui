@@ -19,6 +19,17 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useAccounts } from "@/contexts/AccountsContext";
+import type { Database } from "@/integrations/supabase/types";
+
+type Category = Database["public"]["Tables"]["category"]["Row"] & {
+  sub_categories?: Database["public"]["Tables"]["sub_category"]["Row"][];
+};
+
+interface SubTransactionFormData {
+  value: string;
+  categoryId?: string;
+  subCategoryId?: string;
+}
 
 interface TransactionFormData {
   description: string;
@@ -26,8 +37,8 @@ interface TransactionFormData {
   accountOutId?: string;
   date: string;
   value: string;
-  categories: string[];
   tags: string[];
+  subTransactions: SubTransactionFormData[];
 }
 
 interface TransactionDialogProps {
@@ -36,17 +47,8 @@ interface TransactionDialogProps {
   onOpenChange: (open: boolean) => void;
   onSubmit: (data: TransactionFormData & { type: string }) => void;
   initialData?: TransactionFormData;
+  categories: Category[];
 }
-
-const mockCategories = [
-  "Comida",
-  "Lazer",
-  "Transporte",
-  "Saúde",
-  "Educação",
-  "Casa",
-  "Outros",
-];
 
 const mockTags = ["Saúde", "Comida", "Trabalho", "Familia", "Investimento"];
 
@@ -56,6 +58,7 @@ export function TransactionDialog({
   onOpenChange,
   onSubmit,
   initialData,
+  categories,
 }: TransactionDialogProps) {
   const accounts = useAccounts();
 
@@ -65,8 +68,8 @@ export function TransactionDialog({
     accountOutId: "",
     date: new Date().toISOString().split("T")[0],
     value: "",
-    categories: [],
     tags: [],
+    subTransactions: [],
   };
 
   const [formData, setFormData] = useState<TransactionFormData>(emptyForm);
@@ -81,7 +84,6 @@ export function TransactionDialog({
     }
   }, [isOpen, initialData]);
 
-  const [newCategory, setNewCategory] = useState("");
   const [newTag, setNewTag] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -92,23 +94,6 @@ export function TransactionDialog({
     // Reset form
     setFormData(emptyForm);
     onOpenChange(false);
-  };
-
-  const addCategory = () => {
-    if (newCategory && !formData.categories.includes(newCategory)) {
-      setFormData((prev) => ({
-        ...prev,
-        categories: [...prev.categories, newCategory],
-      }));
-      setNewCategory("");
-    }
-  };
-
-  const removeCategory = (category: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      categories: prev.categories.filter((c) => c !== category),
-    }));
   };
 
   const addTag = () => {
@@ -125,6 +110,31 @@ export function TransactionDialog({
     setFormData((prev) => ({
       ...prev,
       tags: prev.tags.filter((t) => t !== tag),
+    }));
+  };
+
+  const addSubTransaction = () => {
+    setFormData((prev) => ({
+      ...prev,
+      subTransactions: [...prev.subTransactions, { value: "" }],
+    }));
+  };
+
+  const updateSubTransaction = (
+    index: number,
+    updated: Partial<SubTransactionFormData>
+  ) => {
+    setFormData((prev) => {
+      const subs = [...prev.subTransactions];
+      subs[index] = { ...subs[index], ...updated };
+      return { ...prev, subTransactions: subs };
+    });
+  };
+
+  const removeSubTransaction = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      subTransactions: prev.subTransactions.filter((_, i) => i !== index),
     }));
   };
 
@@ -309,7 +319,7 @@ export function TransactionDialog({
                 )}
               </div>
 
-              {/* Valor e Categorias */}
+              {/* Valor e Sub Transações */}
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="value">Valor</Label>
@@ -337,53 +347,93 @@ export function TransactionDialog({
                   </div>
                 </div>
 
-                {/* Categorias */}
+                {/* Sub Transações */}
                 <div className="space-y-2">
-                  <Label>Categorias</Label>
-                  <div className="flex gap-2">
-                    <Select value={newCategory} onValueChange={setNewCategory}>
-                      <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Adicionar categoria" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {mockCategories.map((category) => (
-                          <SelectItem key={category} value={category}>
-                            {category}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      type="button"
-                      onClick={addCategory}
-                      size="icon"
-                      variant="outline"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  {formData.categories.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {formData.categories.map((category) => (
-                        <Badge
-                          key={category}
-                          variant="secondary"
-                          className="flex items-center gap-1"
+                  <Label>Sub Transações</Label>
+                  <div className="space-y-2">
+                    {formData.subTransactions.map((sub, index) => {
+                      const category = categories.find(
+                        (c) => c.id === sub.categoryId
+                      );
+                      return (
+                        <div
+                          key={index}
+                          className="flex items-center gap-2 flex-wrap"
                         >
-                          {category}
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={sub.value}
+                            onChange={(e) =>
+                              updateSubTransaction(index, {
+                                value: e.target.value,
+                              })
+                            }
+                            placeholder="Valor"
+                            className="w-24"
+                          />
+                          <Select
+                            value={sub.categoryId}
+                            onValueChange={(value) =>
+                              updateSubTransaction(index, {
+                                categoryId: value,
+                                subCategoryId: undefined,
+                              })
+                            }
+                          >
+                            <SelectTrigger className="w-[160px]">
+                              <SelectValue placeholder="Categoria" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {categories.map((cat) => (
+                                <SelectItem key={cat.id} value={cat.id}>
+                                  {cat.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {category?.sub_categories?.length ? (
+                            <Select
+                              value={sub.subCategoryId}
+                              onValueChange={(value) =>
+                                updateSubTransaction(index, {
+                                  subCategoryId: value,
+                                })
+                              }
+                            >
+                              <SelectTrigger className="w-[160px]">
+                                <SelectValue placeholder="Subcategoria" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {category.sub_categories.map((sc) => (
+                                  <SelectItem key={sc.id} value={sc.id}>
+                                    {sc.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : null}
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="h-4 w-4 p-0 hover:bg-transparent"
-                            onClick={() => removeCategory(category)}
+                            onClick={() => removeSubTransaction(index)}
                           >
-                            <X className="h-3 w-3" />
+                            <X className="h-4 w-4" />
                           </Button>
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={addSubTransaction}
+                    size="sm"
+                    variant="outline"
+                    className="mt-2"
+                  >
+                    Adicionar sub transação
+                  </Button>
                 </div>
               </div>
 

@@ -19,12 +19,12 @@ interface TransactionFormValues {
   accountOut?: string;
   date: string;
   value: string;
-  categories?: string[];
   tags?: string[];
   accountId?: string;
   accountOutId?: string;
   type: "income" | "expense" | "transfer";
   installments?: number;
+  subTransactions?: { value: string; categoryId?: string; subCategoryId?: string }[];
 }
 
 interface FormattedTransaction {
@@ -42,6 +42,9 @@ type TransactionRow =
   Database["public"]["Tables"]["transactions_installments"]["Row"] & {
     account?: { name: string } | null;
     transaction_type?: { name: string } | null;
+    sub_transactions?: (Database["public"]["Tables"]["transactions_sub"]["Row"] & {
+      transactions_category?: Database["public"]["Tables"]["transactions_category"]["Row"][];
+    })[];
   };
 
 type TransactionDialogFormData = {
@@ -50,8 +53,8 @@ type TransactionDialogFormData = {
   accountOutId?: string;
   date: string;
   value: string;
-  categories: string[];
   tags: string[];
+  subTransactions: { value: string; categoryId?: string; subCategoryId?: string }[];
 };
 
 const Index = () => {
@@ -155,13 +158,19 @@ const Index = () => {
   const mapTransactionToFormData = (
     transaction: TransactionRow
   ): TransactionDialogFormData => ({
-    description: transaction.description || undefined,
-    accountId: transaction.account_id?.toString() || undefined,
-    accountOutId: transaction.account_out_id?.toString() || undefined,
+    description: transaction.description || "",
+    accountId: transaction.account_id?.toString() || "",
+    accountOutId: transaction.account_out_id?.toString() || "",
     date: new Date(transaction.date).toISOString().split("T")[0],
-    value: transaction.value?.toString() || undefined,
-    categories: [],
+    value: transaction.value?.toString() || "",
     tags: [],
+    subTransactions:
+      transaction.sub_transactions?.map((st) => ({
+        value: st.value?.toString() || "",
+        categoryId: st.transactions_category?.[0]?.category_id || undefined,
+        subCategoryId:
+          st.transactions_category?.[0]?.sub_category_id || undefined,
+      })) || [],
   });
 
   const handleTransactionSubmit = async (data: TransactionFormValues) => {
@@ -181,6 +190,12 @@ const Index = () => {
           accountId: data.accountId,
           accountOutId: data.accountOutId,
           date: data.date,
+          subTransactions:
+            data.subTransactions?.map((st) => ({
+              value: Number(st.value),
+              categoryId: st.categoryId,
+              subCategoryId: st.subCategoryId,
+            })) || [],
         });
         setEditingTransaction(null);
       } else {
@@ -194,6 +209,12 @@ const Index = () => {
           transactionTypeId: String(TransactionType[data.type] || 1),
           installments: data.installments || 1,
           date: data.date,
+          subTransactions:
+            data.subTransactions?.map((st) => ({
+              value: Number(st.value),
+              categoryId: st.categoryId,
+              subCategoryId: st.subCategoryId,
+            })) || [],
         });
       }
 
@@ -352,6 +373,7 @@ const Index = () => {
             if (!open) setEditingTransaction(null);
           }}
           onSubmit={handleTransactionSubmit}
+          categories={categories}
           initialData={
             editingTransaction &&
             editingTransaction.transaction_type?.name === "Receita"
@@ -368,6 +390,7 @@ const Index = () => {
             if (!open) setEditingTransaction(null);
           }}
           onSubmit={handleTransactionSubmit}
+          categories={categories}
           initialData={
             editingTransaction &&
             editingTransaction.transaction_type?.name === "Despesa"
@@ -384,6 +407,7 @@ const Index = () => {
             if (!open) setEditingTransaction(null);
           }}
           onSubmit={handleTransactionSubmit}
+          categories={categories}
           initialData={
             editingTransaction &&
             editingTransaction.transaction_type?.name === "Transferência"
