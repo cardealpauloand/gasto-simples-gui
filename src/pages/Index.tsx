@@ -26,8 +26,8 @@ interface TransactionFormValues {
   installments?: number;
   subTransactions?: {
     value: string;
-    categoryIds?: string[];
-    subCategoryIds?: string[];
+    categoryId?: string;
+    subCategoryId?: string;
   }[];
 }
 
@@ -46,9 +46,7 @@ type TransactionRow =
   Database["public"]["Tables"]["transactions_installments"]["Row"] & {
     account?: { name: string } | null;
     transaction_type?: { name: string } | null;
-    sub_transactions?: (Database["public"]["Tables"]["transactions_sub"]["Row"] & {
-      transactions_category?: Database["public"]["Tables"]["transactions_category"]["Row"][];
-    })[];
+  sub_transactions?: Database["public"]["Tables"]["transactions_sub"]["Row"][];
   };
 
 type TransactionDialogFormData = {
@@ -60,8 +58,8 @@ type TransactionDialogFormData = {
   tags: string[];
   subTransactions: {
     value: string;
-    categoryIds?: string[];
-    subCategoryIds?: string[];
+    categoryId?: string;
+    subCategoryId?: string;
   }[];
 };
 
@@ -175,14 +173,12 @@ const Index = () => {
     subTransactions:
       transaction.sub_transactions?.map((st) => ({
         value: st.value?.toString() || "",
-        categoryIds:
-          st.transactions_category
-            ?.map((tc) => tc.category_id)
-            .filter((id): id is string => !!id) || [],
-        subCategoryIds:
-          st.transactions_category
-            ?.map((tc) => tc.sub_category_id)
-            .filter((id): id is string => !!id) || [],
+        categoryId:
+          st.category_id ||
+          categories.find((c) =>
+            c.sub_categories?.some((sc) => sc.id === st.sub_category_id)
+          )?.id || "",
+        subCategoryId: st.sub_category_id || "",
       })) || [],
   });
 
@@ -206,8 +202,8 @@ const Index = () => {
           subTransactions:
             data.subTransactions?.map((st) => ({
               value: Number(st.value),
-              categoryIds: st.categoryIds,
-              subCategoryIds: st.subCategoryIds,
+              categoryId: st.categoryId,
+              subCategoryId: st.subCategoryId,
             })) || [],
         });
         setEditingTransaction(null);
@@ -225,8 +221,8 @@ const Index = () => {
           subTransactions:
             data.subTransactions?.map((st) => ({
               value: Number(st.value),
-              categoryIds: st.categoryIds,
-              subCategoryIds: st.subCategoryIds,
+              categoryId: st.categoryId,
+              subCategoryId: st.subCategoryId,
             })) || [],
         });
       }

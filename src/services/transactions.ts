@@ -6,8 +6,6 @@ type TransactionInstallmentInsert =
   Database["public"]["Tables"]["transactions_installments"]["Insert"];
 type SubTransactionInsert =
   Database["public"]["Tables"]["transactions_sub"]["Insert"];
-type TransactionCategoryInsert =
-  Database["public"]["Tables"]["transactions_category"]["Insert"];
 
 export interface CreateTransactionData {
   description: string;
@@ -22,8 +20,8 @@ export interface CreateTransactionData {
   type?: string;
   subTransactions?: {
     value: number;
-    categoryIds?: string[];
-    subCategoryIds?: string[];
+    categoryId?: string;
+    subCategoryId?: string;
   }[];
 }
 
@@ -37,8 +35,8 @@ export interface UpdateTransactionData {
   accountOutId?: string;
   subTransactions?: {
     value: number;
-    categoryIds?: string[];
-    subCategoryIds?: string[];
+    categoryId?: string;
+    subCategoryId?: string;
   }[];
 }
 
@@ -165,6 +163,8 @@ export const transactionsService = {
           (st) => ({
             transactions_installments_id: firstInstallmentId,
             value: st.value,
+            category_id: st.subCategoryId ? null : st.categoryId || null,
+            sub_category_id: st.subCategoryId || null,
           })
         );
 
@@ -180,47 +180,6 @@ export const transactionsService = {
             .eq("transaction_id", transaction.id);
           await supabase.from("transactions").delete().eq("id", transaction.id);
           throw subsError;
-        }
-
-        const categoryPayload: TransactionCategoryInsert[] = subsData
-          .flatMap((sub, index) => {
-            const st = input.subTransactions![index];
-            const categories =
-              st.categoryIds?.map((categoryId) => ({
-                transactions_sub_id: sub.id,
-                category_id: categoryId,
-              })) || [];
-            const subCategories =
-              st.subCategoryIds?.map((subCategoryId) => ({
-                transactions_sub_id: sub.id,
-                sub_category_id: subCategoryId,
-              })) || [];
-            return [...categories, ...subCategories];
-          })
-          .filter(
-            (c) => c.category_id !== undefined || c.sub_category_id !== undefined
-          );
-
-        if (categoryPayload.length) {
-          const { error: categoryError } = await supabase
-            .from("transactions_category")
-            .insert(categoryPayload);
-
-          if (categoryError) {
-            await supabase
-              .from("transactions_sub")
-              .delete()
-              .in(
-                "id",
-                subsData.map((s) => s.id)
-              );
-            await supabase
-              .from("transactions_installments")
-              .delete()
-              .eq("transaction_id", transaction.id);
-            await supabase.from("transactions").delete().eq("id", transaction.id);
-            throw categoryError;
-          }
         }
 
         createdSubTransactions = subsData;
@@ -284,14 +243,6 @@ export const transactionsService = {
 
         if (oldSubs.length) {
           await supabase
-            .from("transactions_category")
-            .delete()
-            .in(
-              "transactions_sub_id",
-              oldSubs.map((s) => s.id)
-            );
-
-          await supabase
             .from("transactions_sub")
             .delete()
             .eq("transactions_installments_id", input.installmentId);
@@ -302,42 +253,16 @@ export const transactionsService = {
             (st) => ({
               transactions_installments_id: input.installmentId,
               value: st.value,
+              category_id: st.subCategoryId ? null : st.categoryId || null,
+              sub_category_id: st.subCategoryId || null,
             })
           );
 
-          const { data: subsData, error: subsError } = await supabase
+          const { error: subsError } = await supabase
             .from("transactions_sub")
-            .insert(subsPayload)
-            .select();
+            .insert(subsPayload);
 
           if (subsError) throw subsError;
-
-          const categoryPayload: TransactionCategoryInsert[] = subsData
-            .flatMap((sub, index) => {
-              const st = input.subTransactions![index];
-              const categories =
-                st.categoryIds?.map((categoryId) => ({
-                  transactions_sub_id: sub.id,
-                  category_id: categoryId,
-                })) || [];
-              const subCategories =
-                st.subCategoryIds?.map((subCategoryId) => ({
-                  transactions_sub_id: sub.id,
-                  sub_category_id: subCategoryId,
-                })) || [];
-              return [...categories, ...subCategories];
-            })
-            .filter(
-              (c) => c.category_id !== undefined || c.sub_category_id !== undefined
-            );
-
-          if (categoryPayload.length) {
-            const { error: categoryError } = await supabase
-              .from("transactions_category")
-              .insert(categoryPayload);
-
-            if (categoryError) throw categoryError;
-          }
         }
       }
 
@@ -360,10 +285,7 @@ export const transactionsService = {
           transaction_id,
           account:account_id(name),
           transaction_type:transaction_type_id(name),
-          sub_transactions:transactions_sub(
-            *,
-            transactions_category(category_id, sub_category_id)
-          )
+          sub_transactions:transactions_sub(*)
         `
         )
         .eq("user_id", user.id)

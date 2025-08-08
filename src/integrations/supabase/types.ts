@@ -207,52 +207,6 @@ export type Database = {
           },
         ]
       }
-      transactions_category: {
-        Row: {
-          category_id: string | null
-          created_at: string | null
-          id: string
-          sub_category_id: string | null
-          transactions_sub_id: string | null
-        }
-        Insert: {
-          category_id?: string | null
-          created_at?: string | null
-          id?: string
-          sub_category_id?: string | null
-          transactions_sub_id?: string | null
-        }
-        Update: {
-          category_id?: string | null
-          created_at?: string | null
-          id?: string
-          sub_category_id?: string | null
-          transactions_sub_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "transactions_category_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "category"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "transactions_category_sub_category_id_fkey"
-            columns: ["sub_category_id"]
-            isOneToOne: false
-            referencedRelation: "sub_category"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "transactions_category_transactions_sub_id_fkey"
-            columns: ["transactions_sub_id"]
-            isOneToOne: false
-            referencedRelation: "transactions_sub"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       transactions_installments: {
         Row: {
           account_id: string | null
@@ -327,18 +281,24 @@ export type Database = {
           id: string
           transactions_installments_id: string | null
           value: number
+          category_id: string | null
+          sub_category_id: string | null
         }
         Insert: {
           created_at?: string | null
           id?: string
           transactions_installments_id?: string | null
           value: number
+          category_id?: string | null
+          sub_category_id?: string | null
         }
         Update: {
           created_at?: string | null
           id?: string
           transactions_installments_id?: string | null
           value?: number
+          category_id?: string | null
+          sub_category_id?: string | null
         }
         Relationships: [
           {
@@ -346,6 +306,20 @@ export type Database = {
             columns: ["transactions_installments_id"]
             isOneToOne: false
             referencedRelation: "transactions_installments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_sub_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_sub_sub_category_id_fkey"
+            columns: ["sub_category_id"]
+            isOneToOne: false
+            referencedRelation: "sub_category"
             referencedColumns: ["id"]
           },
         ]

@@ -141,6 +141,8 @@ CREATE TABLE transactions_sub (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     transactions_installments_id UUID REFERENCES transactions_installments(id) ON DELETE CASCADE,
     value INTEGER NOT NULL,
+    category_id UUID,
+    sub_category_id UUID,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -200,30 +202,17 @@ INSERT INTO sub_category (name, category_id) VALUES
 ('Cinema', (SELECT id FROM category WHERE name = 'Lazer')),
 ('Games', (SELECT id FROM category WHERE name = 'Lazer'));
 
--- Categoria associada a subtransações
-CREATE TABLE transactions_category (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    transactions_sub_id UUID REFERENCES transactions_sub(id) ON DELETE CASCADE,
-    category_id UUID REFERENCES category(id),
-    sub_category_id UUID REFERENCES sub_category(id),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+-- Adiciona relação de categoria ou subcategoria diretamente na transação
+ALTER TABLE transactions_sub
+    ADD CONSTRAINT transactions_sub_category_id_fkey FOREIGN KEY (category_id) REFERENCES category(id),
+    ADD CONSTRAINT transactions_sub_sub_category_id_fkey FOREIGN KEY (sub_category_id) REFERENCES sub_category(id),
+    ADD CONSTRAINT transactions_sub_category_check CHECK (
+        (category_id IS NOT NULL AND sub_category_id IS NULL) OR
+        (category_id IS NULL AND sub_category_id IS NOT NULL)
+    );
 
-ALTER TABLE transactions_category ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can manage transaction categories" ON transactions_category 
-FOR ALL USING (
-    EXISTS (
-        SELECT 1 FROM transactions_sub ts
-        JOIN transactions_installments ti ON ts.transactions_installments_id = ti.id
-        WHERE ts.id = transactions_sub_id 
-        AND ti.user_id = auth.uid()
-    )
-);
-
-CREATE INDEX idx_transactions_category_sub_id ON transactions_category(transactions_sub_id);
-CREATE INDEX idx_transactions_category_category_id ON transactions_category(category_id);
-CREATE INDEX idx_transactions_category_sub_category_id ON transactions_category(sub_category_id);
+CREATE INDEX idx_transactions_sub_category_id ON transactions_sub(category_id);
+CREATE INDEX idx_transactions_sub_sub_category_id ON transactions_sub(sub_category_id);
 
 -- Tags
 CREATE TABLE tag (

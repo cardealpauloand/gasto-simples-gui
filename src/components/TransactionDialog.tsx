@@ -27,8 +27,8 @@ type Category = Database["public"]["Tables"]["category"]["Row"] & {
 
 interface SubTransactionFormData {
   value: string;
-  categoryIds: string[];
-  subCategoryIds: string[];
+  categoryId: string;
+  subCategoryId: string;
 }
 
 interface TransactionFormData {
@@ -118,7 +118,7 @@ export function TransactionDialog({
       ...prev,
       subTransactions: [
         ...prev.subTransactions,
-        { value: "", categoryIds: [], subCategoryIds: [] },
+        { value: "", categoryId: "", subCategoryId: "" },
       ],
     }));
   };
@@ -139,28 +139,6 @@ export function TransactionDialog({
       ...prev,
       subTransactions: prev.subTransactions.filter((_, i) => i !== index),
     }));
-  };
-
-  const removeSubCategory = (subIndex: number, subCategoryId: string) => {
-    const sub = formData.subTransactions[subIndex];
-    const updated = sub.subCategoryIds.filter((id) => id !== subCategoryId);
-    updateSubTransaction(subIndex, { subCategoryIds: updated });
-  };
-
-  const removeCategory = (subIndex: number, categoryId: string) => {
-    const sub = formData.subTransactions[subIndex];
-    const updatedCats = sub.categoryIds.filter((id) => id !== categoryId);
-    const subCatsToRemove =
-      categories
-        .find((c) => c.id === categoryId)
-        ?.sub_categories?.map((sc) => sc.id) ?? [];
-    const updatedSubCats = sub.subCategoryIds.filter(
-      (id) => !subCatsToRemove.includes(id)
-    );
-    updateSubTransaction(subIndex, {
-      categoryIds: updatedCats,
-      subCategoryIds: updatedSubCats,
-    });
   };
 
   useEffect(() => {
@@ -393,9 +371,9 @@ export function TransactionDialog({
                   <Label>Sub Transações</Label>
                   <div className="space-y-2">
                     {formData.subTransactions.map((sub, index) => {
-                      const availableSubCategories = categories
-                        .filter((c) => sub.categoryIds.includes(c.id))
-                        .flatMap((c) => c.sub_categories || []);
+                      const availableSubCategories =
+                        categories.find((c) => c.id === sub.categoryId)
+                          ?.sub_categories || [];
                       return (
                         <div
                           key={index}
@@ -414,14 +392,13 @@ export function TransactionDialog({
                             className="w-24"
                           />
                           <Select
-                            key={sub.categoryIds.join(",")}
-                            onValueChange={(value) => {
-                              if (!sub.categoryIds.includes(value)) {
-                                updateSubTransaction(index, {
-                                  categoryIds: [...sub.categoryIds, value],
-                                });
-                              }
-                            }}
+                            value={sub.categoryId || undefined}
+                            onValueChange={(value) =>
+                              updateSubTransaction(index, {
+                                categoryId: value,
+                                subCategoryId: "",
+                              })
+                            }
                           >
                             <SelectTrigger className="w-[160px]">
                               <SelectValue placeholder="Adicionar categoria" />
@@ -434,40 +411,16 @@ export function TransactionDialog({
                               ))}
                             </SelectContent>
                           </Select>
-                          <div className="flex gap-1 flex-wrap">
-                            {sub.categoryIds.map((id) => (
-                              <Badge
-                                key={id}
-                                variant="secondary"
-                                className="flex items-center gap-1"
-                              >
-                                {categories.find((c) => c.id === id)?.name}
-                                <button
-                                  type="button"
-                                  onClick={() => removeCategory(index, id)}
-                                >
-                                  <X className="h-3 w-3" />
-                                </button>
-                              </Badge>
-                            ))}
-                          </div>
                           {availableSubCategories.length ? (
                             <>
                               <Select
-                                key={
-                                  sub.subCategoryIds.join(",") +
-                                  sub.categoryIds.join(",")
+                                key={sub.categoryId}
+                                value={sub.subCategoryId || undefined}
+                                onValueChange={(value) =>
+                                  updateSubTransaction(index, {
+                                    subCategoryId: value,
+                                  })
                                 }
-                                onValueChange={(value) => {
-                                  if (!sub.subCategoryIds.includes(value)) {
-                                    updateSubTransaction(index, {
-                                      subCategoryIds: [
-                                        ...sub.subCategoryIds,
-                                        value,
-                                      ],
-                                    });
-                                  }
-                                }}
                               >
                                 <SelectTrigger className="w-[160px]">
                                   <SelectValue placeholder="Adicionar subcategoria" />
@@ -480,29 +433,6 @@ export function TransactionDialog({
                                   ))}
                                 </SelectContent>
                               </Select>
-                              <div className="flex gap-1 flex-wrap">
-                                {sub.subCategoryIds.map((id) => (
-                                  <Badge
-                                    key={id}
-                                    variant="outline"
-                                    className="flex items-center gap-1"
-                                  >
-                                    {
-                                      availableSubCategories.find(
-                                        (sc) => sc.id === id
-                                      )?.name
-                                    }
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        removeSubCategory(index, id)
-                                      }
-                                    >
-                                      <X className="h-3 w-3" />
-                                    </button>
-                                  </Badge>
-                                ))}
-                              </div>
                             </>
                           ) : null}
                           <Button
