@@ -126,9 +126,7 @@ const Index = () => {
         return ["Outros"];
       })();
 
-      const typeId = Number(
-        transaction.transaction_type_id
-      ) as TransactionType;
+      const typeId = Number(transaction.transaction_type_id) as TransactionType;
       return {
         id: transaction.id,
         transactionId: transaction.transaction_id,
@@ -154,9 +152,7 @@ const Index = () => {
 
   const expenseTotals = transactions.reduce<Record<string, number>>(
     (acc, transaction) => {
-      if (
-        Number(transaction.transaction_type_id) !== TransactionType.EXPENSE
-      )
+      if (Number(transaction.transaction_type_id) !== TransactionType.EXPENSE)
         return acc;
       if (transaction.sub_transactions?.length) {
         transaction.sub_transactions.forEach((st) => {
@@ -296,9 +292,7 @@ const Index = () => {
           value: Number(data.value),
           accountId,
           accountOutId,
-          transactionTypeId: String(
-            TRANSACTION_TYPE_FROM_FORM[data.type]
-          ),
+          transactionTypeId: String(TRANSACTION_TYPE_FROM_FORM[data.type]),
           installments: data.installments || 1,
           date: data.date,
           subTransactions:
@@ -381,7 +375,7 @@ const Index = () => {
         </header>
 
         {/* Main Content */}
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <main className="max-w-[90%] mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Action Buttons */}
           <div className="flex flex-wrap justify-center gap-4 mb-8">
             <Button
@@ -416,7 +410,7 @@ const Index = () => {
           </div>
 
           {/* Dashboard Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
             {/* Gráfico de Pizza - Gastos por Categoria */}
             <div className="lg:col-span-1">
               <FinancialChart
@@ -427,7 +421,7 @@ const Index = () => {
             </div>
 
             {/* Lista de Transações */}
-            <div className="lg:col-span-2">
+            <div className="lg:col-span-3">
               <TransactionList
                 transactions={formattedTransactions}
                 onEdit={handleEditTransaction}
