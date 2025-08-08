@@ -5,14 +5,16 @@ import { Button } from "@/components/ui/button";
 import { useTransactions } from "@/hooks/useTransactions";
 import { accountsService } from "@/services/accounts";
 import { useToast } from "@/hooks/use-toast";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { User } from "lucide-react";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
+import { AccountDialog } from "@/components/AccountDialog";
 
 const Accounts = () => {
   const { accounts, transactions, refetch } = useTransactions();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const accountTotals = transactions.reduce<Record<string, number>>(
     (acc, transaction) => {
@@ -62,6 +64,34 @@ const Accounts = () => {
     [toast, refetch]
   );
 
+  const handleCreateAccount = useCallback(
+    async (data: {
+      name: string;
+      initialValue: number;
+      accountGroupId?: string;
+    }) => {
+      try {
+        await accountsService.createAccount(data);
+        toast({
+          title: "Conta criada",
+          description: `${data.name} foi adicionada com sucesso.`,
+        });
+        await refetch();
+      } catch (error: unknown) {
+        const message =
+          error instanceof Error ? error.message : "Erro desconhecido";
+        toast({
+          title: "Erro ao criar conta",
+          description: message,
+          variant: "destructive",
+        });
+      } finally {
+        setIsDialogOpen(false);
+      }
+    },
+    [toast, refetch]
+  );
+
   return (
     <AccountsProvider value={accounts}>
       <div className="min-h-screen bg-background">
@@ -73,9 +103,6 @@ const Accounts = () => {
                 <h1 className="text-xl font-bold text-foreground">Contas</h1>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" asChild>
-                  <Link to="/accounts/new">Nova conta</Link>
-                </Button>
                 <User className="h-5 w-5 text-muted-foreground" />
                 <span className="text-sm font-medium text-foreground">
                   Paulo André
@@ -85,12 +112,20 @@ const Accounts = () => {
           </div>
         </header>
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex justify-end mb-4">
+            <Button onClick={() => setIsDialogOpen(true)}>Nova conta</Button>
+          </div>
           <AccountBalance
             accounts={formattedAccounts}
             onEdit={handleEditAccount}
             onDelete={handleDeleteAccount}
           />
         </main>
+        <AccountDialog
+          isOpen={isDialogOpen}
+          onOpenChange={setIsDialogOpen}
+          onSubmit={handleCreateAccount}
+        />
       </div>
     </AccountsProvider>
   );

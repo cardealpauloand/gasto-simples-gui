@@ -3,7 +3,7 @@ import { Plus, Minus, ArrowRightLeft, User } from "lucide-react";
 import HamburgerMenu from "@/components/HamburgerMenu";
 import type { Database } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { FinancialChart } from "@/components/FinancialChart";
 import { TransactionList } from "@/components/TransactionList";
 import { AccountBalance } from "@/components/AccountBalance";
@@ -278,9 +278,6 @@ const Index = () => {
               </div>
 
               <div className="flex items-center gap-2">
-                <Button variant="outline" asChild>
-                  <Link to="/accounts/new">Nova conta</Link>
-                </Button>
                 <User className="h-5 w-5 text-muted-foreground" />
                 <span className="text-sm font-medium text-foreground">
                   Paulo André
